@@ -13,7 +13,7 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    "typeRoots": ["./types", "./node_modules/@types"],   // ✅ ←これを追加！
+    "typeRoots": ["./types", "./node_modules/@types"],  // ✅ ここが超重要！
     "plugins": [
       {
         "name": "next"
