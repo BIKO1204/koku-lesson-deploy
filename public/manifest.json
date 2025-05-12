@@ -1,21 +1,9 @@
 {
-  "id": "/",
-  "name": "国語授業案アプリ",
-  "short_name": "授業案",
-  "icons": [
-    {
-      "src": "/icon-192x192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "/icon-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
-  ],
   "start_url": "/plan",
+  "scope": "/plan/",
+  "name": "国語授業プランナー",
+  "short_name": "授業プラン",
   "display": "standalone",
-  "theme_color": "#ffffff",
-  "background_color": "#ffffff"
+  "background_color": "#ffffff",
+  "theme_color": "#000000"
 }
