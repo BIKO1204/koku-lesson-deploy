@@ -1,54 +1,95 @@
+import { OpenAI } from 'openai';
 import { NextResponse } from 'next/server';
 
+// ✅ OpenAI クライアント初期化（App Router用）
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
 export async function POST(req: Request) {
-  const body = await req.json();
+  try {
+    const {
+      subject,
+      grade,
+      genre,
+      unit,
+      hours,
+      unitGoal,
+      lessonPlan,
+      languageActivities,
+      evaluationPoints,
+      childImage,
+    } = await req.json();
 
-  const { subject, grade, unit, hours, genre } = body;
+    // ✅ プロンプト（順番・語尾指定あり）
+    const prompt = `
+以下の情報をもとに、小学校国語の授業案を作成してください。
+出力は以下の順番・見出しに従って、実践的でわかりやすく整えてください。
 
-  const prompt = `
-あなたは小学校の国語教師アシスタントです。
-以下の情報をもとに、学習目標や授業展開を含む国語の授業案を作成してください。
+1. 教科書名
+2. 学年
+3. ジャンル
+4. 単元名
+5. 授業時間数
 
-【教科書】${subject}
-【学年】${grade}
-【単元名】${unit}
-【授業時間数】${hours}
-【ジャンル】${genre}
+■ 単元の目標：
+〜することができる。で終わる文にしてください。
 
-※ 児童が意欲的に取り組めるように工夫してください。
+■ 評価の観点：
+〜することができる。で終わる文にしてください。
+
+■ 育てたい子どもの姿：
+自然で簡潔な表現で。
+
+■ 授業の展開：
+各時間ごとに1時間目〜○時間目の構成で整理してください。
+
+■ 言語活動の工夫：
+自然な語尾（〜する。）や丁寧な表現で記述してください。
+
+以下の情報を参考にしてください：
+
+教科書名：${subject}
+学年：${grade}
+ジャンル：${genre}
+単元名：${unit}
+授業時間数：${hours}
+
+■ 単元の目標：
+${unitGoal}
+
+${evaluationPoints}
+
+■ 育てたい子どもの姿：
+${childImage}
+
+${lessonPlan}
+
+■ 言語活動の工夫：
+${languageActivities}
 `;
 
-  console.log('送信されたプロンプト:', prompt); // デバッグ用
-
-  try {
-    const apiKey = process.env.OPENAI_API_KEY;
-
-    if (!apiKey) {
-      throw new Error('OPENAI_API_KEY が設定されていません。');
-    }
-
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4',
-        messages: [
-          { role: 'system', content: 'あなたは優秀な国語教師です。' },
-          { role: 'user', content: prompt },
-        ],
-        temperature: 0.7,
-      }),
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4',
+      messages: [
+        {
+          role: 'system',
+          content: 'あなたは小学校の国語の授業を支援する専門アシスタントです。',
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      temperature: 0.7,
     });
 
-    const data = await res.json();console.log('GPTからの返答:', data);
-    
-    return NextResponse.json({ result: data.choices?.[0]?.message?.content ?? '生成に失敗しました。' });
+    const message = completion.choices[0]?.message?.content || '出力がありませんでした。';
 
-  } catch (err: any) {
-    console.error('エラー:', err);
-    return NextResponse.json({ result: 'エラーが発生しました。' });
+    return NextResponse.json({ result: message });
+  } catch (error) {
+    console.error('生成エラー:', error);
+    return NextResponse.json({ error: '授業案の生成に失敗しました。' }, { status: 500 });
   }
 }
+
