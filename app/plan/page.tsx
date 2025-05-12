@@ -242,30 +242,39 @@ ${evaluationPoints.attitude}
 
           {loading && <p>生成中です…</p>}
 
+          {/* ✅ PDF出力ボタンは常に表示・無効化切替 */}
+          <button
+            onClick={handleDownloadPDF}
+            disabled={result === ""}
+            style={{
+              marginTop: "1rem",
+              opacity: result === "" ? 0.5 : 1,
+              cursor: result === "" ? "not-allowed" : "pointer"
+            }}
+          >
+            PDFとして保存する
+          </button>
+
+          {/* ✅ 授業案表示 */}
           {result && (
-            <>
-              <button onClick={handleDownloadPDF} style={{ marginTop: "1rem" }}>
-                PDFとして保存する
-              </button>
-              <section style={{ marginTop: "2rem" }}>
-                <h2 style={{ fontSize: "1.2rem", marginBottom: "1rem" }}>【生成された授業案】</h2>
-                <div id="result-content" style={{ whiteSpace: "pre-wrap", lineHeight: "1.8" }}>
-                  {result.split("\n").map((line, index) => {
-                    if (line.startsWith("■")) {
-                      return (
-                        <p key={index} style={{ fontWeight: "bold", marginTop: "1.2em" }}>
-                          {line}
-                        </p>
-                      );
-                    } else if (line.trim() === "") {
-                      return <br key={index} />;
-                    } else {
-                      return <p key={index}>{line}</p>;
-                    }
-                  })}
-                </div>
-              </section>
-            </>
+            <section style={{ marginTop: "2rem" }}>
+              <h2 style={{ fontSize: "1.2rem", marginBottom: "1rem" }}>【生成された授業案】</h2>
+              <div id="result-content" style={{ whiteSpace: "pre-wrap", lineHeight: "1.8" }}>
+                {result.split("\n").map((line, index) => {
+                  if (line.startsWith("■")) {
+                    return (
+                      <p key={index} style={{ fontWeight: "bold", marginTop: "1.2em" }}>
+                        {line}
+                      </p>
+                    );
+                  } else if (line.trim() === "") {
+                    return <br key={index} />;
+                  } else {
+                    return <p key={index}>{line}</p>;
+                  }
+                })}
+              </div>
+            </section>
           )}
         </>
       )}
