@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import html2pdf from 'html2pdf.js';
 
 export default function PlanPage() {
   const correctPassword = '92kofb';
@@ -38,6 +39,22 @@ export default function PlanPage() {
     const newList = [...lessonPlanList];
     newList[index] = value;
     setLessonPlanList(newList);
+  };
+
+  const handleDownloadPDF = () => {
+    const element = document.getElementById('result-content');
+    if (element) {
+      html2pdf()
+        .set({
+          margin: 0.5,
+          filename: '授業案.pdf',
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2 },
+          jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+        })
+        .from(element)
+        .save();
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -106,7 +123,6 @@ ${evaluationPoints.attitude}
         <>
           <h1>授業プラン入力フォーム</h1>
           <form onSubmit={handleSubmit}>
-
             <p>
               <label>教科書名：<br />
                 <select value={subject} onChange={e => setSubject(e.target.value)}>
@@ -116,7 +132,6 @@ ${evaluationPoints.attitude}
                 </select>
               </label>
             </p>
-
             <p>
               <label>学年：<br />
                 <select value={grade} onChange={e => setGrade(e.target.value)}>
@@ -125,23 +140,18 @@ ${evaluationPoints.attitude}
                 </select>
               </label>
             </p>
-
             <p>
               <label>ジャンル：<br />
                 <select value={genre} onChange={e => setGenre(e.target.value)}>
-                  <option>物語文</option>
-                  <option>説明文</option>
-                  <option>詩</option>
+                  <option>物語文</option><option>説明文</option><option>詩</option>
                 </select>
               </label>
             </p>
-
             <p>
               <label>単元名：<br />
                 <input type="text" value={unit} onChange={e => setUnit(e.target.value)} required />
               </label>
             </p>
-
             <p>
               <label>授業時間数：<br />
                 <input
@@ -149,15 +159,10 @@ ${evaluationPoints.attitude}
                   min="1"
                   value={hours}
                   onChange={e => setHours(e.target.value)}
-                  style={{
-                    MozAppearance: 'textfield',
-                    WebkitAppearance: 'none',
-                    appearance: 'textfield',
-                  }}
+                  style={{ appearance: 'textfield' }}
                 />
               </label>
             </p>
-
             <p>
               <label>■ 単元の目標：<br />
                 <textarea
@@ -168,7 +173,6 @@ ${evaluationPoints.attitude}
                 />
               </label>
             </p>
-
             <h3>■ 評価の観点（3観点）</h3>
             <p>
               <label>① 知識・技能：<br />
@@ -206,7 +210,6 @@ ${evaluationPoints.attitude}
                 />
               </label>
             </p>
-
             <p>
               <label>■ 育てたい子どもの姿：<br />
                 <textarea
@@ -217,7 +220,6 @@ ${evaluationPoints.attitude}
                 />
               </label>
             </p>
-
             <h3>■ 授業の展開（各時間ごとに記入）</h3>
             {lessonPlanList.map((text, i) => (
               <p key={i}>
@@ -231,7 +233,6 @@ ${evaluationPoints.attitude}
                 </label>
               </p>
             ))}
-
             <p>
               <label>■ 言語活動の工夫：<br />
                 <textarea
@@ -242,33 +243,37 @@ ${evaluationPoints.attitude}
                 />
               </label>
             </p>
-
             <button type="submit">この内容で授業案をつくる</button>
           </form>
 
           {loading && <p>生成中です…</p>}
 
           {result && (
-            <section style={{ marginTop: '2rem' }}>
-              <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>【生成された授業案】</h2>
-              <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.8' }}>
-                {result
-                  .split('\n')
-                  .map((line, index) => {
-                    if (line.startsWith('■')) {
-                      return (
-                        <p key={index} style={{ fontWeight: 'bold', marginTop: '1.2em' }}>
-                          {line}
-                        </p>
-                      );
-                    } else if (line.trim() === '') {
-                      return <br key={index} />;
-                    } else {
-                      return <p key={index}>{line}</p>;
-                    }
-                  })}
-              </div>
-            </section>
+            <>
+              <button onClick={handleDownloadPDF} style={{ marginTop: '1rem' }}>
+                PDFとして保存する
+              </button>
+              <section style={{ marginTop: '2rem' }}>
+                <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>【生成された授業案】</h2>
+                <div id="result-content" style={{ whiteSpace: 'pre-wrap', lineHeight: '1.8' }}>
+                  {result
+                    .split('\n')
+                    .map((line, index) => {
+                      if (line.startsWith('■')) {
+                        return (
+                          <p key={index} style={{ fontWeight: 'bold', marginTop: '1.2em' }}>
+                            {line}
+                          </p>
+                        );
+                      } else if (line.trim() === '') {
+                        return <br key={index} />;
+                      } else {
+                        return <p key={index}>{line}</p>;
+                      }
+                    })}
+                </div>
+              </section>
+            </>
           )}
         </>
       )}
