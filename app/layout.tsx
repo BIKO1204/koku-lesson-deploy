@@ -1,4 +1,5 @@
 // app/layout.tsx
+import './globals.css';
 
 export const metadata = {
   title: '国語授業案アプリ',
@@ -16,7 +17,9 @@ export default function RootLayout({
       <head>
         <link rel="icon" href="/icon-192x192.png" />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+      </body>
     </html>
   );
 }
