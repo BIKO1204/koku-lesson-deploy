@@ -1,14 +1,12 @@
-// PlanPage.tsx（完全統合・入力欄復元版）
+// app/plan/page.tsx（Googleログイン完全削除・全コード復元版）
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
 import { v4 as uuidv4 } from 'uuid';
 import Link from 'next/link';
 
 export default function PlanPage() {
   const correctPassword = "92kofb";
-  const { data: session } = useSession();
 
   const [authenticated, setAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
@@ -25,7 +23,6 @@ export default function PlanPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState("");
   const [saved, setSaved] = useState(false);
-  const [driveMessage, setDriveMessage] = useState("");
 
   useEffect(() => {
     const num = parseInt(hours);
@@ -73,32 +70,6 @@ export default function PlanPage() {
     setSaved(true);
   };
 
-  const handleSaveToDrive = async () => {
-    if (!session) {
-      setDriveMessage("ログインが必要です");
-      return;
-    }
-    const accessToken = (session as any).accessToken;
-    const today = new Date().toISOString().slice(0, 10);
-    const filename = `${grade}_${unit}_${today}_授業案.txt`;
-    const res = await fetch("/api/save-to-drive", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        accessToken,
-        content: result,
-        filename,
-        mimeType: "text/plain",
-      }),
-    });
-    const data = await res.json();
-    if (res.ok) {
-      setDriveMessage(`保存成功！ファイルID: ${data.fileId}`);
-    } else {
-      setDriveMessage(`保存失敗：${data.error}`);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -117,10 +88,8 @@ export default function PlanPage() {
         evaluationPoints: `
 ① 知識・技能：
 ${evaluationPoints.knowledge}
-
 ② 思考・判断・表現：
 ${evaluationPoints.thinking}
-
 ③ 主体的に学習に取り組む態度：
 ${evaluationPoints.attitude}
 `,
@@ -189,7 +158,6 @@ ${evaluationPoints.attitude}
       ) : (
         <form onSubmit={handleSubmit}>
           <h2 style={{ fontSize: "1.4rem", marginBottom: "1rem", textAlign: "center" }}>授業プラン入力フォーム</h2>
-
           <div style={cardStyle}>
             <label>教科書名：<br />
               <select value={subject} onChange={(e) => setSubject(e.target.value)} style={inputStyle}>
@@ -199,7 +167,6 @@ ${evaluationPoints.attitude}
               </select>
             </label>
           </div>
-
           <div style={cardStyle}>
             <label>学年：<br />
               <select value={grade} onChange={(e) => setGrade(e.target.value)} style={inputStyle}>
@@ -212,7 +179,6 @@ ${evaluationPoints.attitude}
               </select>
             </label>
           </div>
-
           <div style={cardStyle}>
             <label>ジャンル：<br />
               <select value={genre} onChange={(e) => setGenre(e.target.value)} style={inputStyle}>
@@ -222,32 +188,21 @@ ${evaluationPoints.attitude}
               </select>
             </label>
           </div>
-
           <div style={cardStyle}>
             <label>単元名：<br />
               <input type="text" value={unit} onChange={(e) => setUnit(e.target.value)} required style={inputStyle} />
             </label>
           </div>
-
           <div style={cardStyle}>
             <label>授業時間数：<br />
-              <input
-                type="number"
-                min="1"
-                step="1"
-                value={hours}
-                onChange={(e) => setHours(e.target.value)}
-                style={inputStyle}
-              />
+              <input type="number" min="1" step="1" value={hours} onChange={(e) => setHours(e.target.value)} style={inputStyle} />
             </label>
           </div>
-
           <div style={cardStyle}>
             <label>■ 単元の目標：<br />
               <textarea value={unitGoal} onChange={(e) => setUnitGoal(e.target.value)} rows={3} style={inputStyle} />
             </label>
           </div>
-
           <div style={cardStyle}>
             <h3 style={{ marginTop: 0 }}>■ 評価</h3>
             <label>① 知識・技能：<br />
@@ -260,13 +215,11 @@ ${evaluationPoints.attitude}
               <textarea value={evaluationPoints.attitude} onChange={(e) => setEvaluationPoints({ ...evaluationPoints, attitude: e.target.value })} rows={2} style={inputStyle} />
             </label>
           </div>
-
           <div style={cardStyle}>
             <label>■ 育てたい子どもの姿：<br />
               <textarea value={childImage} onChange={(e) => setChildImage(e.target.value)} rows={3} style={inputStyle} />
             </label>
           </div>
-
           {lessonPlanList.length > 0 && (
             <div style={cardStyle}>
               <h3 style={{ marginTop: 0 }}>■ 授業の展開</h3>
@@ -279,40 +232,25 @@ ${evaluationPoints.attitude}
               ))}
             </div>
           )}
-
           <div style={cardStyle}>
             <label>■ 言語活動の工夫：<br />
               <textarea value={languageActivities} onChange={(e) => setLanguageActivities(e.target.value)} rows={3} style={inputStyle} />
             </label>
           </div>
-
-          <button type="submit" style={{ ...buttonStyle, backgroundColor: "#4CAF50" }}>
-            授業案を生成する
-          </button>
-
+          <button type="submit" style={{ ...buttonStyle, backgroundColor: "#4CAF50" }}>授業案を生成する</button>
           {loading && <p>生成中です…</p>}
-
           {result && (
             <>
-              <button onClick={handleDownloadPDF} style={{ ...buttonStyle, backgroundColor: "#2196F3" }}>
+              <button type="button" onClick={handleDownloadPDF} style={{ ...buttonStyle, backgroundColor: "#2196F3" }}>
                 PDFとして保存する
               </button>
-              <button onClick={handleSavePlan} style={{ ...buttonStyle, backgroundColor: "#FF9800" }}>
+              <button type="button" onClick={handleSavePlan} style={{ ...buttonStyle, backgroundColor: "#FF9800" }}>
                 この授業案を保存する
               </button>
-              <button onClick={handleSaveToDrive} style={{ ...buttonStyle, backgroundColor: "#9C27B0" }}>
-                Google Drive に保存する
-              </button>
-              <p style={{ color: driveMessage.includes("成功") ? "green" : "red" }}>{driveMessage}</p>
+              {saved && <p style={{ color: "green" }}>保存しました！</p>}
               <div id="result-content" style={{ whiteSpace: "pre-wrap", padding: "1rem", border: "1px solid #ccc", marginTop: "1rem", borderRadius: "8px" }}>
                 {result.split("\n").map((line, index) =>
-                  line.startsWith("■") || line.startsWith("①") || line.startsWith("②") || line.startsWith("③") ? (
-                    <p key={index} style={{ fontWeight: "bold", marginTop: "1.2em" }}>{line}</p>
-                  ) : line.trim() === "" ? (
-                    <br key={index} />
-                  ) : (
-                    <p key={index}>{line}</p>
-                  )
+                  line.trim() === "" ? <br key={index} /> : <p key={index}>{line}</p>
                 )}
               </div>
             </>
