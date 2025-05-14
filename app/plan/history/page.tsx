@@ -29,11 +29,11 @@ export default function HistoryPage() {
   return (
     <main style={{ padding: '2rem', fontFamily: 'sans-serif' }}>
       <nav style={{ marginBottom: '1.5rem' }}>
-        <Link href="/plan" style={{ marginRight: '1rem' }}>📋 授業作成</Link>
+        <Link href="/plan" style={{ marginRight: '1rem' }}>📋 授業案作成</Link>
         <Link href="/plan/history">📖 履歴を見る</Link>
       </nav>
 
-      <h1>保存された授業プラン一覧</h1>
+      <h1>保存された授業案一覧</h1>
 
       <div style={{ marginBottom: '1rem' }}>
         <label>
@@ -92,10 +92,13 @@ export default function HistoryPage() {
                   onClick={() => alert(plan.result)}
                   style={{ marginRight: '0.5rem' }}
                 >表示</button>
+
                 <button
                   onClick={() => {
                     const element = document.createElement('div');
                     element.innerText = plan.result;
+                    element.style.position = 'absolute';
+                    element.style.left = '-9999px';
                     document.body.appendChild(element);
                     import('html2pdf.js').then((html2pdf) => {
                       html2pdf.default().set({
@@ -109,7 +112,38 @@ export default function HistoryPage() {
                       });
                     });
                   }}
+                  style={{ marginRight: '0.5rem' }}
                 >PDF</button>
+
+                <button
+                  onClick={async () => {
+                    if (!plan.result || !window.confirm("この授業案をGoogle Driveに保存しますか？")) return;
+                    const session = JSON.parse(localStorage.getItem("next-auth.session") || "null");
+                    const accessToken = session?.accessToken;
+                    if (!accessToken) {
+                      alert("Googleにログインしていない、またはアクセストークンが取得できませんでした。\n最初に/planページでログインしてください。");
+                      return;
+                    }
+                    const today = new Date().toISOString().slice(0, 10);
+                    const filename = `${plan.grade}_${plan.unit}_${today}_授業案.txt`;
+                    const res = await fetch("/api/save-to-drive", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        accessToken,
+                        content: plan.result,
+                        filename,
+                        mimeType: "text/plain",
+                      }),
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                      alert(`Google Drive に保存成功！ファイルID: ${data.fileId}`);
+                    } else {
+                      alert(`保存失敗：${data.error}`);
+                    }
+                  }}
+                >Drive</button>
               </td>
             </tr>
           ))}
@@ -120,3 +154,4 @@ export default function HistoryPage() {
     </main>
   );
 }
+
