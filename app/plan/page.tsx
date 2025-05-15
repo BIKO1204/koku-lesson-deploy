@@ -11,7 +11,7 @@ export default function PlanPage() {
   const [authenticated, setAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
   const [subject, setSubject] = useState("東京書籍");
-  const [grade, setGrade] = useState("2年");
+  const [grade, setGrade] = useState("1年");
   const [genre, setGenre] = useState("物語文");
   const [unit, setUnit] = useState("");
   const [hours, setHours] = useState("");
@@ -84,7 +84,8 @@ export default function PlanPage() {
         genre,
         unit,
         hours,
-        unitGoal,
+        unitGoal: `■ 単元の目標：
+${unitGoal}`,
         evaluationPoints: `
 ① 知識・技能：
 ${evaluationPoints.knowledge}
