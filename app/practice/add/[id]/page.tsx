@@ -11,7 +11,7 @@ export default function PracticeAddPage() {
   const [boardImages, setBoardImages] = useState<string[]>([]);
 
   const router = useRouter();
-  const { id } = useParams();
+  const id = (useParams() as { id: string }).id; // ✅ 型を明示してエラー解消
 
   useEffect(() => {
     const saved = localStorage.getItem("lessonPlans");
