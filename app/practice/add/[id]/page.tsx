@@ -2,140 +2,232 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import Link from "next/link";
 
 export default function PracticeAddPage() {
-  const [plan, setPlan] = useState<any>(null);
-  const [reflection, setReflection] = useState("");
-  const [executionDate, setExecutionDate] = useState("");
-  const [boardImages, setBoardImages] = useState<string[]>([]);
-
   const router = useRouter();
-  const id = (useParams() as { id: string }).id; // ✅ 型を明示してエラー解消
+  const { id } = useParams() as { id: string };
+
+  const [practiceDate, setPracticeDate] = useState("");
+  const [reflection, setReflection] = useState("");
+  const [boardImages, setBoardImages] = useState<string[]>([]);
+  const [lessonTitle, setLessonTitle] = useState("");
 
   useEffect(() => {
-    const saved = localStorage.getItem("lessonPlans");
-    if (!saved || !id) return;
-    const parsed = JSON.parse(saved);
-    const found = parsed.find((p: any) => p.id === id);
-    if (found) {
-      setPlan(found);
-      setReflection(found.reflection || "");
-      setExecutionDate(found.executionDate || "");
-      setBoardImages(found.boardImages || []);
+    // 授業案タイトル取得
+    const lessonPlans = JSON.parse(localStorage.getItem("lessonPlans") || "[]");
+    const targetPlan = lessonPlans.find((p: any) => p.id === id);
+    if (targetPlan) setLessonTitle(targetPlan.unit);
+
+    // 実践記録の読み込み
+    const practiceRecords = JSON.parse(localStorage.getItem("practiceRecords") || "[]");
+    const record = practiceRecords.find((r: any) => r.lessonId === id);
+    if (record) {
+      setPracticeDate(record.practiceDate);
+      setReflection(record.reflection);
+      setBoardImages(record.boardImages || []);
     }
   }, [id]);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-    const readers = Array.from(files).map((file) => {
-      return new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.readAsDataURL(file);
-      });
+  // 画像アップロード→Base64変換追加
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+    const files = Array.from(e.target.files);
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (reader.result && typeof reader.result === "string") {
+          setBoardImages((prev) => [...prev, reader.result as string]);
+        }
+      };
+      reader.readAsDataURL(file);
     });
-    Promise.all(readers).then((results) => {
-      setBoardImages((prev) => [...prev, ...results]);
-    });
+    e.target.value = "";
   };
 
+  const handleRemoveImage = (index: number) => {
+    setBoardImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // 保存
   const handleSave = () => {
-    const saved = localStorage.getItem("lessonPlans");
-    if (!saved) return;
-    const parsed = JSON.parse(saved);
-    const updated = parsed.map((p: any) =>
-      p.id === id ? { ...p, reflection, executionDate, boardImages } : p
-    );
-    localStorage.setItem("lessonPlans", JSON.stringify(updated));
-    alert("実践を保存しました");
+    const practiceRecords = JSON.parse(localStorage.getItem("practiceRecords") || "[]");
+    const existingIndex = practiceRecords.findIndex((r: any) => r.lessonId === id);
+    const newRecord = { lessonId: id, practiceDate, reflection, boardImages };
+
+    if (existingIndex >= 0) practiceRecords[existingIndex] = newRecord;
+    else practiceRecords.push(newRecord);
+
+    localStorage.setItem("practiceRecords", JSON.stringify(practiceRecords));
+    alert("実践記録を保存しました！");
     router.push("/practice/history");
   };
 
-  if (!plan) return <p>読み込み中...</p>;
-
-  const inputStyle = {
-    width: "100%",
-    padding: "1rem",
-    fontSize: "1.1rem",
-    borderRadius: "10px",
-    border: "1px solid #ccc",
-    marginBottom: "1.5rem",
-    boxSizing: "border-box" as const,
-  };
-
-  const labelStyle = {
-    fontWeight: "bold",
-    fontSize: "1.2rem",
-    marginBottom: "0.5rem",
-    display: "block",
-  };
-
   const buttonStyle = {
-    width: "100%",
-    padding: "1rem",
-    fontSize: "1.2rem",
+    padding: "0.5rem 1rem",
+    fontSize: "1rem",
+    borderRadius: "8px",
+    backgroundColor: "#1976d2",
     color: "white",
     border: "none",
-    borderRadius: "10px",
     cursor: "pointer",
   };
 
   return (
-    <main style={{
-      padding: "2rem",
-      fontFamily: "sans-serif",
-      maxWidth: "700px",
-      margin: "0 auto",
-      backgroundColor: "#f9f9f9",
-      borderRadius: "12px",
-      boxShadow: "0 4px 8px rgba(0,0,0,0.1)"
-    }}>
-      <nav style={{ marginBottom: "1.5rem" }}>
-        <Link href="/practice/history" style={{ textDecoration: "none", color: "#4CAF50", fontSize: "1rem" }}>
-          ← 実践履歴にもどる
-        </Link>
+    <main style={{ padding: "1.5rem", fontFamily: "sans-serif", maxWidth: "700px", margin: "0 auto" }}>
+      {/* 横並びナビゲーション */}
+      <nav
+        style={{
+          display: "flex",
+          gap: "1rem",
+          marginBottom: "1.5rem",
+          flexWrap: "wrap",
+          justifyContent: "center",
+        }}
+      >
+        <button onClick={() => router.push("/")} style={buttonStyle}>
+          🏠 ホーム
+        </button>
+        <button onClick={() => router.push("/plan")} style={buttonStyle}>
+          📋 授業作成
+        </button>
+        <button onClick={() => router.push("/plan/history")} style={buttonStyle}>
+          📖 計画履歴
+        </button>
+        <button onClick={() => router.push("/practice/history")} style={buttonStyle}>
+          📷 実践履歴
+        </button>
+        <button onClick={() => router.push("/models/create")} style={buttonStyle}>
+          ✏️ 教育観作成
+        </button>
+        <button onClick={() => router.push("/models")} style={buttonStyle}>
+          📚 教育観一覧
+        </button>
       </nav>
 
-      <h1 style={{ fontSize: "1.5rem", marginBottom: "1.5rem" }}>📷 授業実践を追加：{plan.unit}</h1>
+      <h2>実践記録作成・編集</h2>
+      <p>
+        <strong>授業案タイトル：</strong> {lessonTitle}
+      </p>
 
-      <label style={labelStyle}>🗓 実施日：</label>
+      <label>
+        実施日：<br />
+        <input
+          type="date"
+          value={practiceDate}
+          onChange={(e) => setPracticeDate(e.target.value)}
+          style={{ width: "100%", padding: "0.6rem", marginBottom: "1rem", fontSize: "1.1rem" }}
+        />
+      </label>
+
+      <label>
+        振り返り：<br />
+        <textarea
+          value={reflection}
+          onChange={(e) => setReflection(e.target.value)}
+          rows={4}
+          style={{ width: "100%", padding: "0.6rem", marginBottom: "1rem", fontSize: "1.1rem" }}
+        />
+      </label>
+
+      {/* ボタン風にして目立たせた写真アップロード */}
+      <label
+        htmlFor="boardImageUpload"
+        style={{
+          display: "inline-block",
+          padding: "1rem 2rem",
+          backgroundColor: "#2196F3",
+          color: "white",
+          fontWeight: "bold",
+          fontSize: "1.2rem",
+          borderRadius: "10px",
+          cursor: "pointer",
+          userSelect: "none",
+          boxShadow: "0 4px 8px rgba(33, 150, 243, 0.6)",
+          marginBottom: "1rem",
+          textAlign: "center",
+          width: "100%",
+        }}
+      >
+        📷 板書写真をアップロード（複数選択OK）
+      </label>
       <input
-        type="date"
-        value={executionDate}
-        onChange={(e) => setExecutionDate(e.target.value)}
-        style={inputStyle}
-      />
-
-      <label style={labelStyle}>📝 ふりかえり：</label>
-      <textarea
-        value={reflection}
-        onChange={(e) => setReflection(e.target.value)}
-        rows={5}
-        style={inputStyle}
-      />
-
-      <label style={labelStyle}>📷 板書写真を追加：</label>
-      <input
+        id="boardImageUpload"
         type="file"
-        accept="image/*"
         multiple
-        onChange={handleImageUpload}
-        style={{ marginBottom: "1.5rem", fontSize: "1rem" }}
+        accept="image/*"
+        onChange={handleFileChange}
+        style={{ display: "none" }}
       />
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: "1.5rem" }}>
+      {/* 板書写真大きめプレビュー＆削除ボタン */}
+      <div
+        style={{
+          display: "flex",
+          gap: "1rem",
+          flexWrap: "wrap",
+          marginBottom: "1.5rem",
+          justifyContent: "center",
+        }}
+      >
         {boardImages.map((src, i) => (
-          <img key={i} src={src} alt={`写真${i + 1}`} style={{ width: "100px", borderRadius: "6px" }} />
+          <div
+            key={i}
+            style={{
+              width: 200,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              border: "1px solid #ccc",
+              borderRadius: "12px",
+              padding: "0.75rem",
+              boxShadow: "0 3px 8px rgba(0,0,0,0.15)",
+              backgroundColor: "white",
+            }}
+          >
+            <img
+              src={src}
+              alt={`板書写真${i + 1}`}
+              style={{ width: "180px", height: "180px", objectFit: "cover", borderRadius: "10px", marginBottom: "0.75rem" }}
+            />
+            <button
+              onClick={() => handleRemoveImage(i)}
+              style={{
+                width: "100%",
+                padding: "0.6rem",
+                fontSize: "1.1rem",
+                backgroundColor: "#e53935",
+                color: "white",
+                border: "none",
+                borderRadius: "8px",
+                cursor: "pointer",
+                userSelect: "none",
+                boxShadow: "0 3px 6px rgba(0,0,0,0.25)",
+                transition: "background-color 0.3s",
+              }}
+              onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#b71c1c")}
+              onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#e53935")}
+              aria-label={`板書写真${i + 1}を削除`}
+            >
+              🗑 写真を削除
+            </button>
+          </div>
         ))}
       </div>
 
       <button
         onClick={handleSave}
-        style={{ ...buttonStyle, backgroundColor: "#4CAF50" }}
+        style={{
+          padding: "1rem",
+          width: "100%",
+          backgroundColor: "#4CAF50",
+          color: "white",
+          border: "none",
+          borderRadius: "10px",
+          cursor: "pointer",
+          fontSize: "1.2rem",
+        }}
       >
-        💾 保存する
+        保存する
       </button>
     </main>
   );
