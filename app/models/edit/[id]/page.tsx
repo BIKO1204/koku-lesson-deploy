@@ -5,7 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function EditStylePage() {
-  const { id } = useParams();
+  const params = useParams();
+  const id = Array.isArray(params?.id) ? params.id[0] : params?.id || "";
   const router = useRouter();
 
   const [style, setStyle] = useState<any>(null);
