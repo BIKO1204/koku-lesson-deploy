@@ -5,12 +5,16 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 export default function StyleDetailPage() {
-  const { id } = useParams();
+  const params = useParams();
+  // paramsがnullの可能性やidが配列かもを考慮して安全にidを取得
+  const id = Array.isArray(params?.id) ? params.id[0] : params?.id ?? "";
   const router = useRouter();
   const [style, setStyle] = useState<any>(null);
   const [relatedPlans, setRelatedPlans] = useState<any[]>([]);
 
   useEffect(() => {
+    if (!id) return; // idがないなら何もしない
+
     const styleModels = JSON.parse(localStorage.getItem("styleModels") || "[]");
     const foundStyle = styleModels.find((s: any) => s.id === id);
     if (foundStyle) setStyle(foundStyle);
