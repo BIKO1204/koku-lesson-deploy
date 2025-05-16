@@ -111,8 +111,7 @@ export default function PlanPage() {
     setResult("");
 
     const lessonPlanText = lessonPlanList.map((text, i) => `${i + 1}時間目：${text}`).join("\n");
-    const evaluationText = `
-① 知識・技能：
+    const evaluationText = `① 知識・技能：
 ${evaluationPoints.knowledge.map((p) => `・${p}`).join("\n")}
 ② 思考・判断・表現：
 ${evaluationPoints.thinking.map((p) => `・${p}`).join("\n")}
@@ -120,8 +119,7 @@ ${evaluationPoints.thinking.map((p) => `・${p}`).join("\n")}
 ${evaluationPoints.attitude.map((p) => `・${p}`).join("\n")}`.trim();
 
     if (mode === "manual") {
-      const manualResult = `
-【単元名】${unit}
+      const manualResult = `【単元名】${unit}
 【単元の目標】
 ${unitGoal}
 【評価の観点】
@@ -229,28 +227,27 @@ ${selectedStyle.childFocus}
       .save();
   };
 
-  const inputStyle = {
+  const inputStyle: React.CSSProperties = {
     width: "100%",
     padding: "0.8rem",
     fontSize: "1.1rem",
-    borderRadius: "8px",
+    borderRadius: 8,
     border: "1px solid #ccc",
     marginBottom: "1rem",
   };
 
-  // --- 新規：上部横並びナビ用スタイル ---
-  const navBarStyle = {
+  const navBarStyle: React.CSSProperties = {
     display: "flex",
     gap: "1rem",
     overflowX: "auto",
     padding: "1rem",
     backgroundColor: "#f0f0f0",
-    borderRadius: "8px",
+    borderRadius: 8,
     marginBottom: "2rem",
-    whiteSpace: "nowrap" as const,
+    whiteSpace: "nowrap",
   };
 
-  const navLinkStyle = {
+  const navLinkStyle: React.CSSProperties = {
     display: "flex",
     alignItems: "center",
     gap: "0.5rem",
@@ -258,9 +255,9 @@ ${selectedStyle.childFocus}
     backgroundColor: "#1976d2",
     color: "white",
     fontWeight: "bold",
-    borderRadius: "6px",
+    borderRadius: 6,
     textDecoration: "none",
-    whiteSpace: "nowrap" as const,
+    whiteSpace: "nowrap",
     cursor: "pointer",
   };
 
@@ -326,7 +323,7 @@ ${selectedStyle.childFocus}
               style={{
                 background: "#f9f9f9",
                 padding: "1rem",
-                borderRadius: "8px",
+                borderRadius: 8,
                 marginBottom: "1rem",
                 fontSize: "0.95rem",
               }}
