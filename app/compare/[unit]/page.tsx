@@ -6,8 +6,7 @@ import Link from "next/link";
 
 export default function ComparePage() {
   const params = useParams();
-  // paramsは Record<string, string | string[] | undefined> の可能性があるため、unitをstringとして型アサーション
-  const unit = Array.isArray(params.unit) ? params.unit[0] : params.unit || "";
+  const unit = Array.isArray(params?.unit) ? params.unit[0] : params?.unit ?? "";
 
   const [plans, setPlans] = useState<any[]>([]);
 
@@ -29,7 +28,7 @@ export default function ComparePage() {
         <p>この単元に関する授業案が見つかりません。</p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-          {plans.map((plan) => (
+          {plans.map((plan, index) => (
             <div
               key={plan.id}
               style={{
