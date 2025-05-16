@@ -3,9 +3,15 @@ import './globals.css';
 
 export const metadata = {
   title: '国語授業案アプリ',
-  themeColor: '#ffffff',
   manifest: '/manifest.json',
 };
+
+// Next.js 15系推奨の themeColor 設定
+export function generateViewport() {
+  return {
+    themeColor: '#ffffff',
+  };
+}
 
 export default function RootLayout({
   children,
