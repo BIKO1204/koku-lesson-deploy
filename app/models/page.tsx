@@ -74,10 +74,11 @@ export default function ModelListPage() {
     if (editId === id) cancelEdit();
   };
 
+  // CSS in JS スタイル定義
   const navBarStyle = {
     display: "flex",
     gap: "1rem",
-    overflowX: "auto",
+    overflowX: "auto" as const,
     padding: "1rem",
     backgroundColor: "#f0f0f0",
     borderRadius: "8px",
@@ -230,3 +231,4 @@ export default function ModelListPage() {
     </main>
   );
 }
+
