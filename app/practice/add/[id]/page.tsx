@@ -72,6 +72,15 @@ export default function PracticeAddPage() {
     cursor: "pointer",
   };
 
+  // 外枠用スタイル
+  const sectionBoxStyle: React.CSSProperties = {
+    border: "2px solid #1976d2",
+    borderRadius: "8px",
+    padding: "1rem",
+    marginBottom: "1.5rem",
+    backgroundColor: "#f5faff",
+  };
+
   return (
     <main style={{ padding: "1.5rem", fontFamily: "sans-serif", maxWidth: "700px", margin: "0 auto" }}>
       {/* 横並びナビゲーション */}
@@ -109,25 +118,29 @@ export default function PracticeAddPage() {
         <strong>授業案タイトル：</strong> {lessonTitle}
       </p>
 
-      <label>
-        実施日：<br />
-        <input
-          type="date"
-          value={practiceDate}
-          onChange={(e) => setPracticeDate(e.target.value)}
-          style={{ width: "100%", padding: "0.6rem", marginBottom: "1rem", fontSize: "1.1rem" }}
-        />
-      </label>
+      <div style={sectionBoxStyle}>
+        <label>
+          実施日：<br />
+          <input
+            type="date"
+            value={practiceDate}
+            onChange={(e) => setPracticeDate(e.target.value)}
+            style={{ width: "100%", padding: "0.6rem", fontSize: "1.1rem" }}
+          />
+        </label>
+      </div>
 
-      <label>
-        振り返り：<br />
-        <textarea
-          value={reflection}
-          onChange={(e) => setReflection(e.target.value)}
-          rows={4}
-          style={{ width: "100%", padding: "0.6rem", marginBottom: "1rem", fontSize: "1.1rem" }}
-        />
-      </label>
+      <div style={sectionBoxStyle}>
+        <label>
+          振り返り：<br />
+          <textarea
+            value={reflection}
+            onChange={(e) => setReflection(e.target.value)}
+            rows={4}
+            style={{ width: "100%", padding: "0.6rem", fontSize: "1.1rem" }}
+          />
+        </label>
+      </div>
 
       {/* ボタン風にして目立たせた写真アップロード */}
       <label
