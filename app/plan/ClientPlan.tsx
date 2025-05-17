@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
 import Papa from "papaparse";
 
-export default function ClientPlan() {
+export default function PlanPage() {
   const correctPassword = "92kofb";
   const [authenticated, setAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
@@ -147,7 +147,7 @@ ${selectedStyle.philosophy}
 ${selectedStyle.evaluationFocus}
 【言語活動の重視】
 ${selectedStyle.languageFocus}
-【育てたい子ども像】
+【育てたい子どもの姿】
 ${selectedStyle.childFocus}
 `
             : "",
@@ -341,7 +341,7 @@ ${selectedStyle.childFocus}
                 {selectedStyle.languageFocus}
               </p>
               <p>
-                <strong>育てたい子ども像：</strong>
+                <strong>育てたい子どもの姿：</strong>
                 {selectedStyle.childFocus}
               </p>
             </div>
