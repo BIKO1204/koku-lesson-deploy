@@ -76,6 +76,9 @@ export default function PracticeHistoryPage() {
         <button onClick={() => router.push("/models")} style={navButtonStyle}>
           📚 教育観一覧
         </button>
+        <button onClick={() => router.push("/models")} style={navButtonStyle}>
+          🕒 教育観履歴
+        </button>
       </nav>
 
       <h2>実践履歴一覧</h2>

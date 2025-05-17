@@ -283,6 +283,10 @@ ${selectedStyle.childFocus}
         <Link href="/models" style={navLinkStyle}>
           📚 教育観一覧
         </Link>
+        <Link href="/models" style={navLinkStyle}>
+          🕒 教育観履歴
+        </Link>
+
       </nav>
 
       {/* ここから既存フォーム部分 */}

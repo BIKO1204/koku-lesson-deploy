@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { v4 as uuidv4 } from "uuid";
+import Link from "next/link";
 
 type EducationStyleVersion = {
   id: string;
@@ -28,7 +28,7 @@ export default function EducationStyleHistoryPage() {
   const addInitialVersion = () => {
     if (history.length === 0) {
       const initial: EducationStyleVersion = {
-        id: uuidv4(),
+        id: crypto.randomUUID ? crypto.randomUUID() : "init-id", // uuidv4 ない場合の代替
         updatedAt: new Date().toISOString(),
         philosophy: "ここに教育哲学を入力してください。",
         evaluationFocus: "ここに評価観点の重点を入力してください。",
@@ -43,14 +43,33 @@ export default function EducationStyleHistoryPage() {
     }
   };
 
-  // タブレット操作に配慮したスタイル
-  const containerStyle = {
+  // スタイル（ナビバー）
+  const navBarStyle: React.CSSProperties = {
     display: "flex",
-    flexDirection: "column" as const,
-    height: "90vh",
-    padding: 16,
-    fontFamily: "sans-serif",
+    gap: "1rem",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    padding: "1rem",
+    backgroundColor: "#f0f0f0",
+    borderRadius: 8,
+    marginBottom: "2rem",
   };
+
+  const navLinkStyle: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.5rem",
+    padding: "0.5rem 1rem",
+    backgroundColor: "#1976d2",
+    color: "white",
+    fontWeight: "bold",
+    borderRadius: 6,
+    textDecoration: "none",
+    whiteSpace: "nowrap",
+    cursor: "pointer",
+  };
+
+  // 履歴タブ風スタイル
   const listStyle = {
     flex: "0 0 auto",
     overflowX: "auto" as const,
@@ -70,6 +89,7 @@ export default function EducationStyleHistoryPage() {
     minWidth: 220,
     textAlign: "center" as const,
   });
+
   const detailStyle = {
     flex: "1 1 auto",
     overflowY: "auto" as const,
@@ -80,6 +100,15 @@ export default function EducationStyleHistoryPage() {
     fontSize: 18,
     whiteSpace: "pre-wrap" as const,
   };
+
+  const containerStyle = {
+    display: "flex",
+    flexDirection: "column" as const,
+    height: "90vh",
+    padding: 16,
+    fontFamily: "sans-serif",
+  };
+
   const buttonStyle = {
     padding: "0.8rem 1.2rem",
     fontSize: 18,
@@ -94,9 +123,21 @@ export default function EducationStyleHistoryPage() {
 
   return (
     <div style={containerStyle}>
+      {/* 全ページ遷移ナビバー */}
+      <nav style={navBarStyle}>
+        <Link href="/" style={navLinkStyle}>🏠 ホーム</Link>
+        <Link href="/plan" style={navLinkStyle}>📋 授業作成</Link>
+        <Link href="/plan/history" style={navLinkStyle}>📖 計画履歴</Link>
+        <Link href="/practice/history" style={navLinkStyle}>📷 実践履歴</Link>
+        <Link href="/models/create" style={navLinkStyle}>✏️ 教育観作成</Link>
+        <Link href="/models" style={navLinkStyle}>📚 教育観一覧</Link>
+        <Link href="/models/history" style={navLinkStyle}>🕒 教育観履歴</Link>
+      </nav>
+
       <h2 style={{ fontSize: 26, marginBottom: 12, textAlign: "center" }}>
         教育観モデル履歴
       </h2>
+
       <button onClick={addInitialVersion} style={buttonStyle}>
         新しい教育観モデルを作成
       </button>

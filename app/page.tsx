@@ -18,6 +18,9 @@ export default function HomePage() {
         <Link href="/models/create" style={{ display: "inline-block", background: "#4CAF50", color: "white", padding: "1rem 2rem", borderRadius: "12px", fontSize: "1.2rem", textAlign: "center", textDecoration: "none", minWidth: "250px" }}>📝 新しい教育観スタイルを登録する</Link>
 
         <Link href="/models" style={{ display: "inline-block", background: "#8BC34A", color: "white", padding: "1rem 2rem", borderRadius: "12px", fontSize: "1.2rem", textAlign: "center", textDecoration: "none", minWidth: "250px" }}>🌱 教育観スタイルを一覧で見る</Link>
+
+        {/* 追加部分 */}
+        <Link href="/models/history" style={{ display: "inline-block", background: "#FF9800", color: "white", padding: "1rem 2rem", borderRadius: "12px", fontSize: "1.2rem", textAlign: "center", textDecoration: "none", minWidth: "250px" }}>🕒 教育観履歴を見る</Link>
       </div>
 
       <p style={{ marginTop: "3rem", fontSize: "1rem", color: "#666", textAlign: "center" }}>

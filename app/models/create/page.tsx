@@ -74,6 +74,7 @@ export default function CreateStylePage() {
         <a href="/practice/history" style={navLinkStyle}>📷 実践履歴</a>
         <a href="/models/create" style={navLinkStyle}>✏️ 教育観作成</a>
         <a href="/models" style={navLinkStyle}>📚 教育観一覧</a>
+        <a href="/models" style={navLinkStyle}>🕒 教育観履歴</a>
       </nav>
 
       <h2 style={{ fontSize: "1.6rem", marginBottom: "1.5rem" }}>教育観モデルの登録</h2>

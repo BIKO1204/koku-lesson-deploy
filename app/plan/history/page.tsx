@@ -136,6 +136,11 @@ export default function HistoryPage() {
           {"\n"}
           教育観一覧
         </Link>
+         <Link href="/models" style={navLinkStyle}>
+          🕒
+          {"\n"}
+          教育観履歴
+        </Link>
       </nav>
 
       <h2 style={{ fontSize: "1.6rem", marginBottom: "1rem" }}>保存された授業案一覧</h2>
