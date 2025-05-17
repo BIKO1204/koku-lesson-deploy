@@ -9,10 +9,10 @@ type EducationModel = {
   evaluationFocus: string;
   languageFocus: string;
   childFocus: string;
+  updatedAt: string; // 新着順ソートに使うため必須にします
 };
 
 type EducationHistory = EducationModel & {
-  updatedAt: string;
   note?: string;
 };
 
@@ -26,13 +26,13 @@ export default function ModelListPage() {
     evaluationFocus: "",
     languageFocus: "",
     childFocus: "",
-    note: "", // 履歴用メモ（任意）
+    note: "",
   });
+  const [sortOrder, setSortOrder] = useState<"newest" | "nameAsc">("newest");
 
   useEffect(() => {
     const storedModels = localStorage.getItem("styleModels");
     if (storedModels) setModels(JSON.parse(storedModels));
-
     const storedHistory = localStorage.getItem("educationStylesHistory");
     if (storedHistory) setHistory(JSON.parse(storedHistory));
   }, []);
@@ -49,7 +49,7 @@ export default function ModelListPage() {
       evaluationFocus: model.evaluationFocus,
       languageFocus: model.languageFocus,
       childFocus: model.childFocus,
-      note: "", // 編集開始時は空にする
+      note: "",
     });
   };
 
@@ -66,7 +66,6 @@ export default function ModelListPage() {
   };
 
   const handleSave = () => {
-    // 必須項目チェック
     if (
       !form.name.trim() ||
       !form.philosophy.trim() ||
@@ -79,13 +78,15 @@ export default function ModelListPage() {
     }
 
     let updatedModels: EducationModel[];
+    const nowISOString = new Date().toISOString();
+
     if (editId) {
-      // 編集の場合は該当モデルを更新
+      // 編集時はモデルを更新＋updatedAt更新
       updatedModels = models.map((m) =>
-        m.id === editId ? { ...m, ...form } : m
+        m.id === editId ? { ...m, ...form, updatedAt: nowISOString } : m
       );
     } else {
-      // 新規作成の場合はUUIDを生成して追加
+      // 新規作成時はUUIDとupdatedAt追加
       const { v4: uuidv4 } = require("uuid");
       const newModel: EducationModel = {
         id: uuidv4(),
@@ -94,6 +95,7 @@ export default function ModelListPage() {
         evaluationFocus: form.evaluationFocus.trim(),
         languageFocus: form.languageFocus.trim(),
         childFocus: form.childFocus.trim(),
+        updatedAt: nowISOString,
       };
       updatedModels = [newModel, ...models];
     }
@@ -101,10 +103,10 @@ export default function ModelListPage() {
     setModels(updatedModels);
     localStorage.setItem("styleModels", JSON.stringify(updatedModels));
 
-    // 履歴への追加処理
+    // 履歴の追加
     const newHistoryEntry: EducationHistory = {
       id: editId ? editId : updatedModels[0].id,
-      updatedAt: new Date().toISOString(),
+      updatedAt: nowISOString,
       name: form.name.trim(),
       philosophy: form.philosophy.trim(),
       evaluationFocus: form.evaluationFocus.trim(),
@@ -112,7 +114,6 @@ export default function ModelListPage() {
       childFocus: form.childFocus.trim(),
       note: form.note.trim() || "（更新時にメモなし）",
     };
-
     const updatedHistory = [newHistoryEntry, ...history];
     setHistory(updatedHistory);
     localStorage.setItem("educationStylesHistory", JSON.stringify(updatedHistory));
@@ -120,15 +121,25 @@ export default function ModelListPage() {
     cancelEdit();
   };
 
-  const handleDelete = (id: string) => {
-    if (!confirm("本当に削除しますか？")) return;
-    const updated = models.filter((m) => m.id !== id);
-    setModels(updated);
-    localStorage.setItem("styleModels", JSON.stringify(updated));
-    if (editId === id) cancelEdit();
+  // 削除ボタンは削除するため関数は残しません
+
+  // 並び替え変更処理
+  const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSortOrder(e.target.value as "newest" | "nameAsc");
   };
 
-  // スタイル定義
+  // 並び替え済みモデル配列
+  const sortedModels = () => {
+    const copy = [...models];
+    if (sortOrder === "newest") {
+      return copy.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    } else if (sortOrder === "nameAsc") {
+      return copy.sort((a, b) => a.name.localeCompare(b.name));
+    }
+    return copy;
+  };
+
+  // スタイル
   const navBarStyle = {
     display: "flex",
     gap: "1rem",
@@ -136,7 +147,7 @@ export default function ModelListPage() {
     padding: "1rem",
     backgroundColor: "#f0f0f0",
     borderRadius: "8px",
-    marginBottom: "2rem",
+    marginBottom: "1rem",
     whiteSpace: "nowrap" as const,
   };
 
@@ -184,20 +195,8 @@ export default function ModelListPage() {
     marginRight: "0.5rem",
   };
 
-  const buttonDanger = {
-    backgroundColor: "#e53935",
-    color: "white",
-    padding: "0.6rem 1.2rem",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
-    fontWeight: "bold",
-  };
-
   return (
-    <main
-      style={{ padding: "2rem", fontFamily: "sans-serif", maxWidth: "900px", margin: "0 auto" }}
-    >
+    <main style={{ padding: "2rem", fontFamily: "sans-serif", maxWidth: 900, margin: "0 auto" }}>
       {/* ナビバー */}
       <nav style={navBarStyle}>
         <a href="/" style={navLinkStyle}>🏠 ホーム</a>
@@ -210,6 +209,15 @@ export default function ModelListPage() {
       </nav>
 
       <h1 style={{ fontSize: "1.8rem", marginBottom: "1.5rem" }}>教育観モデル一覧・編集</h1>
+
+      {/* 並び替えセレクト */}
+      <label style={{ marginBottom: "1rem", display: "block", fontWeight: "bold" }}>
+        並び替え：
+        <select value={sortOrder} onChange={handleSortChange} style={{ marginLeft: "0.5rem", padding: "0.4rem", fontSize: "1rem" }}>
+          <option value="newest">新着順</option>
+          <option value="nameAsc">名前順</option>
+        </select>
+      </label>
 
       {/* 編集フォーム */}
       {editId && (
@@ -250,7 +258,6 @@ export default function ModelListPage() {
             style={inputStyle}
           />
 
-          {/* 追加：更新メモ欄 */}
           <textarea
             placeholder="更新メモ（履歴に残ります）"
             rows={2}
@@ -270,12 +277,12 @@ export default function ModelListPage() {
         </section>
       )}
 
-      {/* モデル一覧カード */}
+      {/* モデル一覧 */}
       <section>
-        {models.length === 0 ? (
+        {sortedModels().length === 0 ? (
           <p>まだ登録された教育観モデルはありません。</p>
         ) : (
-          models.map((model) => (
+          sortedModels().map((model) => (
             <div key={model.id} style={cardStyle}>
               <h3 style={{ marginTop: 0 }}>{model.name}</h3>
               <p><strong>教育観：</strong> {model.philosophy}</p>
@@ -287,9 +294,7 @@ export default function ModelListPage() {
                 <button onClick={() => startEdit(model)} style={buttonPrimary}>
                   編集
                 </button>
-                <button onClick={() => handleDelete(model.id)} style={buttonDanger}>
-                  削除
-                </button>
+                {/* 削除ボタンは削除 */}
               </div>
             </div>
           ))
@@ -298,4 +303,3 @@ export default function ModelListPage() {
     </main>
   );
 }
-
