@@ -130,7 +130,8 @@ ${childImage}
 ${lessonPlanText}
 【言語活動の工夫】
 ${languageActivities}`.trim();
-      setResult(manualResult);
+      // manualモードの結果にも置換
+      setResult(manualResult.replace(/生徒/g, "児童"));
       setLoading(false);
       return;
     }
@@ -171,7 +172,9 @@ ${selectedStyle.childFocus}
       }
 
       const data = await res.json();
-      setResult(data.result);
+      // ここで「生徒」→「児童」に置換
+      const replacedResult = data.result.replace(/生徒/g, "児童");
+      setResult(replacedResult);
     } catch (error) {
       alert("授業案の生成に失敗しました。APIかネットワークの問題です。");
       console.error("Fetch error:", error);
@@ -182,6 +185,9 @@ ${selectedStyle.childFocus}
 
   const handleSavePlan = () => {
     try {
+      // 保存時も「生徒」→「児童」に置換
+      const replaced = result.replace(/生徒/g, "児童");
+
       const timestamp = new Date().toISOString();
       const id = uuidv4();
       const newEntry = {
@@ -197,7 +203,7 @@ ${selectedStyle.childFocus}
         childImage,
         lessonPlanList,
         languageActivities,
-        result,
+        result: replaced,
         usedStyleName: selectedStyle?.name || null,
       };
       const existing = JSON.parse(localStorage.getItem("lessonPlans") || "[]");
@@ -215,8 +221,14 @@ ${selectedStyle.childFocus}
     const html2pdf = (await import("html2pdf.js")).default;
     const element = document.getElementById("result-content");
     if (!element) return;
+    // PDF出力時にも「生徒」→「児童」へ置換してから出力
+    const text = element.textContent || "";
+    const replacedText = text.replace(/生徒/g, "児童");
+
+    // 一時的に結果を置換してPDF化して元に戻す方法もあるが
+    // ここではhtml2pdfで直接出力
     html2pdf()
-      .from(element)
+      .from(`<pre>${replacedText}</pre>`)
       .set({
         margin: 10,
         filename: `${unit}_授業案.pdf`,
@@ -265,28 +277,13 @@ ${selectedStyle.childFocus}
     <main style={{ padding: "1.5rem", fontFamily: "sans-serif", maxWidth: "90vw", margin: "0 auto" }}>
       {/* 横並びナビバー */}
       <nav style={navBarStyle}>
-        <Link href="/" style={navLinkStyle}>
-          🏠 ホーム
-        </Link>
-        <Link href="/plan" style={navLinkStyle}>
-          📋 授業作成
-        </Link>
-        <Link href="/plan/history" style={navLinkStyle}>
-          📖 計画履歴
-        </Link>
-        <Link href="/practice/history" style={navLinkStyle}>
-          📷 実践履歴
-        </Link>
-        <Link href="/models/create" style={navLinkStyle}>
-          ✏️ 教育観作成
-        </Link>
-        <Link href="/models" style={navLinkStyle}>
-          📚 教育観一覧
-        </Link>
-        <Link href="/models" style={navLinkStyle}>
-          🕒 教育観履歴
-        </Link>
-
+        <Link href="/" style={navLinkStyle}>🏠 ホーム</Link>
+        <Link href="/plan" style={navLinkStyle}>📋 授業作成</Link>
+        <Link href="/plan/history" style={navLinkStyle}>📖 計画履歴</Link>
+        <Link href="/practice/history" style={navLinkStyle}>📷 実践履歴</Link>
+        <Link href="/models/create" style={navLinkStyle}>✏️ 教育観作成</Link>
+        <Link href="/models" style={navLinkStyle}>📚 教育観一覧</Link>
+        <Link href="/models/history" style={navLinkStyle}>🕒 教育観履歴</Link>
       </nav>
 
       {/* ここから既存フォーム部分 */}
@@ -301,7 +298,9 @@ ${selectedStyle.childFocus}
             placeholder="パスワードを入力"
           />
           <button
-            onClick={() => (password === correctPassword ? setAuthenticated(true) : alert("パスワードが違います"))}
+            onClick={() =>
+              password === correctPassword ? setAuthenticated(true) : alert("パスワードが違います")
+            }
             style={{ ...inputStyle, backgroundColor: "#4CAF50", color: "white" }}
           >
             確認

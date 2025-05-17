@@ -1,233 +1,223 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { v4 as uuidv4 } from "uuid";
-
 import UpdateApprovalUI from "@/components/UpdateApprovalUI";
 
-export default function EditStylePage() {
+export default function StyleDetailPage() {
   const params = useParams();
-  const id = Array.isArray(params?.id) ? params.id[0] : params?.id || "";
+  const id = Array.isArray(params?.id) ? params.id[0] : params?.id ?? "";
   const router = useRouter();
 
   const [style, setStyle] = useState<any>(null);
-  const [name, setName] = useState("");
-  const [philosophy, setPhilosophy] = useState("");
-  const [evaluationFocus, setEvaluationFocus] = useState("");
-  const [languageFocus, setLanguageFocus] = useState("");
-  const [childFocus, setChildFocus] = useState("");
-  const [message, setMessage] = useState("");
+  const [relatedPlans, setRelatedPlans] = useState<any[]>([]);
   const [showUpdateUI, setShowUpdateUI] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem("styleModels");
-    if (!stored) return;
-    const models = JSON.parse(stored);
-    const found = models.find((s: any) => s.id === id);
-    if (found) {
-      setStyle(found);
-      setName(found.name);
-      setPhilosophy(found.philosophy);
-      setEvaluationFocus(found.evaluationFocus);
-      setLanguageFocus(found.languageFocus);
-      setChildFocus(found.childFocus);
-    }
+    if (!id) return;
+
+    const styleModels = JSON.parse(localStorage.getItem("styleModels") || "[]");
+    const foundStyle = styleModels.find((s: any) => s.id === id);
+    if (foundStyle) setStyle(foundStyle);
+
+    const plans = JSON.parse(localStorage.getItem("lessonPlans") || "[]");
+    const matchedPlans = plans.filter((p: any) => p.usedStyleName === foundStyle?.name);
+    setRelatedPlans(matchedPlans);
   }, [id]);
 
-  const inputStyle = {
-    width: "100%",
-    padding: "1rem",
-    fontSize: "1.1rem",
-    borderRadius: "8px",
-    border: "1px solid #ccc",
-    marginBottom: "1.2rem",
-  };
-
-  const handleSave = () => {
-    const stored = localStorage.getItem("styleModels");
-    if (!stored) return;
-    const models = JSON.parse(stored);
-    const updated = models.map((s: any) =>
-      s.id === id
-        ? { ...s, name, philosophy, evaluationFocus, languageFocus, childFocus }
-        : s
-    );
-    localStorage.setItem("styleModels", JSON.stringify(updated));
-    setMessage("✅ スタイルを更新しました！");
-    setTimeout(() => router.push("/models"), 1000);
-  };
-
-  const handleDelete = () => {
-    if (!confirm("このスタイルを本当に削除してもよいですか？")) return;
-    const stored = localStorage.getItem("styleModels");
-    if (!stored) return;
-    const models = JSON.parse(stored);
-    const updated = models.filter((s: any) => s.id !== id);
-    localStorage.setItem("styleModels", JSON.stringify(updated));
-    router.push("/models");
-  };
-
-  // ステップ２API呼び出し関数をUpdateApprovalUIに渡す用
+  // AIに振り返り文章を送り更新案を取得する関数
   const fetchUpdateProposal = async (feedbackText: string, currentModel: any) => {
-    const res = await fetch("/api/updateEducationModel", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ feedbackText, currentModel }),
-    });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
-    return data.result;
+    try {
+      const res = await fetch("/api/ai-analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ feedbackText, currentModel }),
+      });
+      if (!res.ok) throw new Error("APIエラー");
+      return await res.json();
+    } catch (error) {
+      alert("AI解析に失敗しました。");
+      console.error(error);
+      return null;
+    }
   };
 
-  // UpdateApprovalUIから更新されたモデル受け取り処理
   const handleUpdate = (newVersion: any) => {
-    const stored = localStorage.getItem("styleModels");
-    const models = stored ? JSON.parse(stored) : [];
-    // 新規バージョンとしてIDを振って追加
-    const newModel = {
-      id: uuidv4(),
-      name,
-      philosophy: newVersion.philosophy,
-      evaluationFocus: newVersion.evaluationFocus,
-      languageFocus: newVersion.languageFocus,
-      childFocus: newVersion.childFocus,
-      note: newVersion.note || "AI提案による更新",
+    if (!style) return;
+
+    // ローカルの教育観モデルを更新
+    const styleModels = JSON.parse(localStorage.getItem("styleModels") || "[]");
+    const updatedModels = styleModels.map((s: any) =>
+      s.id === id ? { ...s, ...newVersion } : s
+    );
+    localStorage.setItem("styleModels", JSON.stringify(updatedModels));
+    setStyle({ ...style, ...newVersion });
+    setShowUpdateUI(false);
+
+    // 教育観履歴に追記（最新が先頭）
+    const history = JSON.parse(localStorage.getItem("educationStylesHistory") || "[]");
+    const newHistoryEntry = {
+      id: id,
+      updatedAt: new Date().toISOString(),
+      ...newVersion,
+      note: "AI解析による更新",
     };
-    models.push(newModel);
-    localStorage.setItem("styleModels", JSON.stringify(models));
-    alert("✅ AI提案で教育観モデルを更新しました！");
-    router.push("/models");
+    localStorage.setItem("educationStylesHistory", JSON.stringify([newHistoryEntry, ...history]));
   };
 
-  if (!style)
-    return <p style={{ padding: "2rem" }}>スタイルを読み込み中です...</p>;
+  if (!style) return <p style={{ padding: "2rem" }}>スタイルを読み込んでいます...</p>;
 
   return (
-    <main
-      style={{
-        padding: "2rem",
-        maxWidth: "90vw",
-        margin: "0 auto",
-        fontFamily: "sans-serif",
-      }}
-    >
-      <nav style={{ marginBottom: "2rem" }}>
-        <Link href="/models">← スタイル一覧へ戻る</Link>
+    <main style={{ padding: "2rem", maxWidth: "90vw", margin: "0 auto", fontFamily: "sans-serif" }}>
+      {/* ナビゲーション */}
+      <nav
+        style={{
+          display: "flex",
+          gap: "1rem",
+          marginBottom: "2rem",
+          flexWrap: "wrap",
+          justifyContent: "center",
+        }}
+      >
+        <Link href="/" style={linkStyle}>🏠 ホーム</Link>
+        <Link href="/plan" style={linkStyle}>📋 授業作成</Link>
+        <Link href="/plan/history" style={linkStyle}>📖 計画履歴</Link>
+        <Link href="/practice/history" style={linkStyle}>📷 実践履歴</Link>
+        <Link href="/models/create" style={linkStyle}>✏️ 教育観作成</Link>
+        <Link href="/models" style={linkStyle}>📚 教育観一覧</Link>
+        <Link href="/models/history" style={linkStyle}>🕒 教育観履歴</Link>
       </nav>
 
-      <h2 style={{ fontSize: "1.5rem", marginBottom: "1rem" }}>
-        教育観スタイルの編集
-      </h2>
+      <nav style={{ marginBottom: "2rem" }}>
+        <Link href="/models">← スタイル一覧へ</Link>
+      </nav>
 
-      <label>
-        スタイル名：
-        <br />
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          style={inputStyle}
-        />
-      </label>
-
-      <label>
-        教育観：
-        <br />
-        <textarea
-          value={philosophy}
-          onChange={(e) => setPhilosophy(e.target.value)}
-          rows={3}
-          style={inputStyle}
-        />
-      </label>
-
-      <label>
-        評価観点の重視：
-        <br />
-        <textarea
-          value={evaluationFocus}
-          onChange={(e) => setEvaluationFocus(e.target.value)}
-          rows={2}
-          style={inputStyle}
-        />
-      </label>
-
-      <label>
-        言語活動の重視：
-        <br />
-        <textarea
-          value={languageFocus}
-          onChange={(e) => setLanguageFocus(e.target.value)}
-          rows={2}
-          style={inputStyle}
-        />
-      </label>
-
-      <label>
-        育てたい子ども像：
-        <br />
-        <textarea
-          value={childFocus}
-          onChange={(e) => setChildFocus(e.target.value)}
-          rows={2}
-          style={inputStyle}
-        />
-      </label>
-
-      <button
-        onClick={handleSave}
+      {/* スタイル詳細 */}
+      <h2 style={{ fontSize: "1.6rem", marginBottom: "1rem" }}>{style.name}</h2>
+      <section
         style={{
-          ...inputStyle,
-          backgroundColor: "#4CAF50",
-          color: "white",
-          fontWeight: "bold",
-          cursor: "pointer",
+          marginBottom: "1.5rem",
+          background: "#f9f9f9",
+          padding: "1rem",
+          borderRadius: "10px",
+          whiteSpace: "pre-wrap",
         }}
       >
-        💾 スタイルを保存する
-      </button>
+        <p><strong>教育観：</strong><br />{style.philosophy}</p>
+        <p><strong>評価観点の重視：</strong><br />{style.evaluationFocus}</p>
+        <p><strong>言語活動の重視：</strong><br />{style.languageFocus}</p>
+        <p><strong>育てたい子どもの姿：</strong><br />{style.childFocus}</p>
+      </section>
 
+      {/* 授業作成ボタン */}
       <button
-        onClick={handleDelete}
-        style={{
-          ...inputStyle,
-          backgroundColor: "#F44336",
-          color: "white",
-          fontWeight: "bold",
-          cursor: "pointer",
-        }}
+        onClick={() => router.push(`/plan?styleId=${style.id}`)}
+        style={buttonStyleGreen}
       >
-        🗑 このスタイルを削除する
+        ▶︎ このスタイルで授業を作成する
       </button>
 
-      {message && <p style={{ color: "green", marginTop: "1rem" }}>{message}</p>}
-
-      <hr style={{ margin: "2rem 0" }} />
-
-      {/* 振り返りAI更新UIの表示切り替えボタン */}
+      {/* AI振り返り解析ボタン */}
       <button
-        onClick={() => setShowUpdateUI((v) => !v)}
-        style={{
-          ...inputStyle,
-          backgroundColor: showUpdateUI ? "#1976d2" : "#03A9F4",
-          color: "white",
-          fontWeight: "bold",
-          cursor: "pointer",
-          marginBottom: "1rem",
-        }}
+        onClick={() => setShowUpdateUI(true)}
+        style={buttonStyleOrange}
       >
-        {showUpdateUI ? "AI更新提案を閉じる" : "振り返りからAI更新提案を取得する"}
+        🔄 振り返りをAIで解析・モデルを更新する
       </button>
 
+      {/* 振り返りAI承認UI */}
       {showUpdateUI && (
         <UpdateApprovalUI
-          currentModel={{ philosophy, evaluationFocus, languageFocus, childFocus }}
+          currentModel={{
+            philosophy: style.philosophy,
+            evaluationFocus: style.evaluationFocus,
+            languageFocus: style.languageFocus,
+            childFocus: style.childFocus,
+          }}
           onUpdate={handleUpdate}
           onCancel={() => setShowUpdateUI(false)}
           fetchUpdateProposal={fetchUpdateProposal}
         />
       )}
+
+      {/* 関連授業案一覧 */}
+      <h3 style={{ fontSize: "1.3rem", marginBottom: "1rem" }}>このスタイルで作成した授業案</h3>
+      {relatedPlans.length === 0 ? (
+        <p>まだこのスタイルで作成された授業案はありません。</p>
+      ) : (
+        <ul style={{ listStyle: "none", paddingLeft: 0 }}>
+          {relatedPlans.map((plan) => (
+            <li
+              key={plan.id}
+              style={{
+                marginBottom: "1rem",
+                padding: "1rem",
+                border: "1px solid #ccc",
+                borderRadius: "10px",
+                backgroundColor: "#fdfdfd",
+              }}
+            >
+              <p>
+                <strong>{plan.unit}</strong>（{plan.grade}・{plan.genre}）
+              </p>
+              <p>授業時間：{plan.hours}時間</p>
+              <Link href="/plan/history">
+                <button
+                  style={{
+                    marginTop: "0.5rem",
+                    backgroundColor: "#2196F3",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "6px",
+                    padding: "0.5rem 1rem",
+                    fontSize: "0.95rem",
+                    cursor: "pointer",
+                  }}
+                >
+                  📖 履歴ページで確認
+                </button>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </main>
   );
 }
+
+const linkStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: "0.3rem",
+  padding: "0.4rem 0.8rem",
+  backgroundColor: "#e0e0e0",
+  borderRadius: "8px",
+  textDecoration: "none",
+  color: "#333",
+  fontWeight: "bold",
+  fontSize: "1rem",
+  cursor: "pointer",
+};
+
+const buttonStyleGreen = {
+  padding: "0.8rem 1.2rem",
+  fontSize: "1.1rem",
+  backgroundColor: "#4CAF50",
+  color: "white",
+  borderRadius: "10px",
+  border: "none",
+  marginBottom: "2rem",
+  cursor: "pointer",
+};
+
+const buttonStyleOrange = {
+  padding: "0.8rem 1.2rem",
+  fontSize: "1.1rem",
+  backgroundColor: "#FF9800",
+  color: "white",
+  borderRadius: "10px",
+  border: "none",
+  marginBottom: "2rem",
+  cursor: "pointer",
+};

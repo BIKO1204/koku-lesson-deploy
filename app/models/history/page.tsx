@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 type EducationStyleVersion = {
   id: string;
@@ -16,6 +17,7 @@ type EducationStyleVersion = {
 export default function EducationStyleHistoryPage() {
   const [history, setHistory] = useState<EducationStyleVersion[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     const stored = localStorage.getItem("educationStylesHistory");
@@ -24,26 +26,15 @@ export default function EducationStyleHistoryPage() {
 
   const selectedVersion = history.find((v) => v.id === selectedId) || null;
 
-  // 新規追加例（初回のみの追加などに使う）
-  const addInitialVersion = () => {
-    if (history.length === 0) {
-      const initial: EducationStyleVersion = {
-        id: crypto.randomUUID ? crypto.randomUUID() : "init-id", // uuidv4 ない場合の代替
-        updatedAt: new Date().toISOString(),
-        philosophy: "ここに教育哲学を入力してください。",
-        evaluationFocus: "ここに評価観点の重点を入力してください。",
-        languageFocus: "ここに言語活動の重点を入力してください。",
-        childFocus: "ここに育てたい子どもの姿を入力してください。",
-        note: "初期バージョン",
-      };
-      const newHistory = [initial];
-      setHistory(newHistory);
-      localStorage.setItem("educationStylesHistory", JSON.stringify(newHistory));
-      setSelectedId(initial.id);
-    }
+  const handleCreateNew = () => {
+    router.push("/models/create"); // 新規作成ページへ遷移
   };
 
-  // スタイル（ナビバー）
+  const handleSelect = (id: string) => {
+    router.push(`/models/edit/${id}`); // 編集ページへ遷移
+  };
+
+  // ナビゲーションバー用スタイル
   const navBarStyle: React.CSSProperties = {
     display: "flex",
     gap: "1rem",
@@ -69,25 +60,25 @@ export default function EducationStyleHistoryPage() {
     cursor: "pointer",
   };
 
-  // 履歴タブ風スタイル
+  // 縦並びスクロール対応の履歴一覧スタイル
   const listStyle = {
-    flex: "0 0 auto",
-    overflowX: "auto" as const,
-    whiteSpace: "nowrap" as const,
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: "12px",
+    overflowY: "auto" as const,
+    maxHeight: "400px",
     marginBottom: 16,
   };
   const itemStyle = (selected: boolean) => ({
-    display: "inline-block",
     padding: "12px 20px",
-    marginRight: 12,
     borderRadius: 8,
     cursor: "pointer",
     backgroundColor: selected ? "#1976d2" : "#e0e0e0",
     color: selected ? "white" : "black",
     fontSize: 18,
     userSelect: "none" as const,
-    minWidth: 220,
     textAlign: "center" as const,
+    boxShadow: selected ? "0 0 10px rgba(25, 118, 210, 0.6)" : "none",
   });
 
   const detailStyle = {
@@ -138,7 +129,7 @@ export default function EducationStyleHistoryPage() {
         教育観モデル履歴
       </h2>
 
-      <button onClick={addInitialVersion} style={buttonStyle}>
+      <button onClick={handleCreateNew} style={buttonStyle}>
         新しい教育観モデルを作成
       </button>
 
@@ -146,12 +137,12 @@ export default function EducationStyleHistoryPage() {
         {history.map((v) => (
           <div
             role="listitem"
-            key={v.id}
-            onClick={() => setSelectedId(v.id)}
+            key={v.updatedAt + v.id} // key重複対策でidに更新日時も付加
+            onClick={() => handleSelect(v.id)}
             style={itemStyle(v.id === selectedId)}
             tabIndex={0}
             onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") setSelectedId(v.id);
+              if (e.key === "Enter" || e.key === " ") handleSelect(v.id);
             }}
             aria-selected={v.id === selectedId}
           >
@@ -169,7 +160,7 @@ export default function EducationStyleHistoryPage() {
       >
         {selectedVersion ? (
           <>
-            <h3 style={{ marginTop: 0 }}>教育哲学</h3>
+            <h3 style={{ marginTop: 0 }}>教育理念</h3>
             <p>{selectedVersion.philosophy}</p>
 
             <h3>評価観点の重点</h3>
