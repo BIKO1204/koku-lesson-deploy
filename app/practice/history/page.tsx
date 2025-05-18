@@ -4,7 +4,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import html2pdf from "html2pdf.js";
 import { db } from "../../firebaseConfig.js";
 import { collection, getDocs, orderBy, query } from "firebase/firestore";
 
@@ -92,7 +91,8 @@ export default function PracticeHistoryPage() {
     setSelectedIds(new Set());
   };
 
-  const exportPdf = (rec: PracticeRecord) => {
+  const exportPdf = async (rec: PracticeRecord) => {
+    const html2pdf = (await import("html2pdf.js")).default;
     const el = document.getElementById(`record-${rec.id}`);
     if (!el) return;
     html2pdf()
@@ -139,7 +139,7 @@ export default function PracticeHistoryPage() {
         const plan = getPlan(rec.lessonId);
         return (
           <section
-            key={`${rec.id}-${idx}`}       
+            key={`${rec.id}-${idx}`}
             id={`record-${rec.id}`}
             style={cardStyle}
           >
@@ -191,12 +191,12 @@ export default function PracticeHistoryPage() {
                 <h3>■ 板書写真</h3>
                 <div style={imgGridStyle}>
                   {rec.boardImages.map((url, i) => (
-                    <img 
-                      key={`${rec.id}-img-${i}`} 
-                      src={url} 
-                      alt="板書写真" 
-                      style={thumbStyle} 
-                      onClick={() => window.open(url, "_blank")} 
+                    <img
+                      key={`${rec.id}-img-${i}`}
+                      src={url}
+                      alt="板書写真"
+                      style={thumbStyle}
+                      onClick={() => window.open(url, "_blank")}
                     />
                   ))}
                 </div>
