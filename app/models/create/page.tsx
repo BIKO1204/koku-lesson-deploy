@@ -1,163 +1,259 @@
+// app/models/create/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { v4 as uuidv4 } from "uuid";
 
-export default function CreateStylePage() {
+type EducationModel = {
+  id: string;
+  name: string;
+  philosophy: string;
+  evaluationFocus: string;
+  languageFocus: string;
+  childFocus: string;
+  updatedAt: string;
+};
+
+export default function CreateModelPage() {
   const router = useRouter();
 
-  const [name, setName] = useState("");
-  const [philosophy, setPhilosophy] = useState("");
-  const [languageFocus, setLanguageFocus] = useState("");
-  const [evaluationFocus, setEvaluationFocus] = useState("");
-  const [childFocus, setChildFocus] = useState("");
+  const [models, setModels] = useState<EducationModel[]>([]);
+  const [form, setForm] = useState({
+    name: "",
+    philosophy: "",
+    evaluationFocus: "",
+    languageFocus: "",
+    childFocus: "",
+    note: "",
+  });
+  const [editId, setEditId] = useState<string | null>(null);
+  const [error, setError] = useState("");
+
+  // localStorage から読み込み
+  useEffect(() => {
+    const stored = localStorage.getItem("styleModels");
+    if (stored) setModels(JSON.parse(stored));
+  }, []);
+
+  const handleChange = (field: keyof typeof form, value: string) => {
+    setForm(prev => ({ ...prev, [field]: value }));
+  };
 
   const handleSave = () => {
-    if (!name || !philosophy || !languageFocus || !evaluationFocus || !childFocus) {
-      alert("すべての項目を入力してください。");
+    setError("");
+    // 必須項目チェック
+    if (!form.name.trim() ||
+        !form.philosophy.trim() ||
+        !form.evaluationFocus.trim() ||
+        !form.languageFocus.trim() ||
+        !form.childFocus.trim()) {
+      setError("すべての必須項目を入力してください。");
       return;
     }
 
-    const newId = uuidv4();
+    const now = new Date().toISOString();
+    let updated: EducationModel[];
 
-    const newStyle = {
-      id: newId,
-      name,
-      philosophy,
-      languageFocus,
-      evaluationFocus,
-      childFocus,
-    };
+    if (editId) {
+      // 編集
+      updated = models.map(m =>
+        m.id === editId
+          ? { ...m, ...form, updatedAt: now }
+          : m
+      );
+    } else {
+      // 新規
+      updated = [
+        {
+          id: uuidv4(),
+          ...form,
+          updatedAt: now,
+        },
+        ...models,
+      ];
+    }
 
-    // 既存スタイル取得
-    const existing = JSON.parse(localStorage.getItem("styleModels") || "[]");
-    const updated = [newStyle, ...existing];
+    // 保存
     localStorage.setItem("styleModels", JSON.stringify(updated));
-
-    // 履歴データにも追加
-    const existingHistory = JSON.parse(localStorage.getItem("educationStylesHistory") || "[]");
-    const newHistoryEntry = {
-      id: newId,
-      updatedAt: new Date().toISOString(),
-      name,
-      philosophy,
-      languageFocus,
-      evaluationFocus,
-      childFocus,
-      note: "新規作成",
-    };
-    const updatedHistory = [newHistoryEntry, ...existingHistory];
-    localStorage.setItem("educationStylesHistory", JSON.stringify(updatedHistory));
-
-    alert("スタイルを保存しました！");
-    router.push("/models"); // 登録後、一覧ページへ遷移
-  };
-
-  const inputStyle = {
-    width: "100%",
-    padding: "1.2rem",
-    fontSize: "1.4rem",
-    borderRadius: "8px",
-    border: "1px solid #ccc",
-    marginBottom: "1.5rem",
-    boxSizing: "border-box" as const,
-  };
-
-  const labelStyle = {
-    fontWeight: "bold",
-    fontSize: "1.3rem",
-    marginBottom: "0.3rem",
-    display: "block",
-  };
-
-  const buttonStyle = {
-    backgroundColor: "#4CAF50",
-    color: "white",
-    padding: "1rem",
-    fontSize: "1.4rem",
-    border: "none",
-    borderRadius: "10px",
-    cursor: "pointer",
-    width: "100%",
-    minHeight: "48px",
-  };
-
-  const navLinkStyle = {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: "0.5rem",
-    padding: "0.5rem 1rem",
-    backgroundColor: "#1976d2",
-    color: "white",
-    fontWeight: "bold",
-    borderRadius: "6px",
-    textDecoration: "none",
-    cursor: "pointer",
+    setModels(updated);
+    // リストに戻る
+    router.push("/models");
   };
 
   return (
-    <main style={{ padding: "2rem", fontFamily: "sans-serif", maxWidth: "700px", margin: "0 auto" }}>
-      <nav style={{ display: "flex", gap: "1rem", marginBottom: "2rem", overflowX: "auto", whiteSpace: "nowrap" }}>
-        <a href="/" style={navLinkStyle}>🏠 ホーム</a>
-        <a href="/plan" style={navLinkStyle}>📋 授業作成</a>
-        <a href="/plan/history" style={navLinkStyle}>📖 計画履歴</a>
-        <a href="/practice/history" style={navLinkStyle}>📷 実践履歴</a>
-        <a href="/models/create" style={navLinkStyle}>✏️ 教育観作成</a>
-        <a href="/models" style={navLinkStyle}>📚 教育観一覧</a>
-        <a href="/models/history" style={navLinkStyle}>🕒 教育観履歴</a>
+    <main style={{
+      padding: "2rem 4rem",
+      width: "100%",
+      maxWidth: 1200,
+      margin: "0 auto",
+      fontFamily: "sans-serif",
+    }}>
+      {/* ナビゲーション */}
+      <nav style={{
+        display: "flex",
+        gap: 12,
+        marginBottom: 24,
+        overflowX: "auto",
+      }}>
+        {[
+          ["/", "🏠 ホーム"],
+          ["/plan", "📋 授業作成"],
+          ["/plan/history", "📖 計画履歴"],
+          ["/practice/history", "📷 実践履歴"],
+          ["/models", "📚 教育観一覧"],
+          ["/models/history", "🕒 教育観履歴"],
+        ].map(([href, label]) => (
+          <Link key={href} href={href} style={{
+            padding: "8px 12px",
+            backgroundColor: "#1976d2",
+            color: "white",
+            borderRadius: 6,
+            textDecoration: "none",
+            whiteSpace: "nowrap",
+          }}>
+            {label}
+          </Link>
+        ))}
       </nav>
 
-      <h2 style={{ fontSize: "1.6rem", marginBottom: "1.5rem" }}>教育観モデルの登録</h2>
+      <h1 style={{ fontSize: "2rem", marginBottom: "1.5rem", textAlign: "center" }}>
+        {editId ? "✏️ 教育観モデルを編集" : "✏️ 新しい教育観モデルを作成"}
+      </h1>
 
-      <label style={labelStyle}>スタイル名：</label>
-      <input
-        type="text"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        style={inputStyle}
-        aria-label="スタイル名"
-      />
+      {error && (
+        <p style={{ color: "red", marginBottom: "1rem", textAlign: "center" }}>
+          {error}
+        </p>
+      )}
 
-      <label style={labelStyle}>教育理念（どんな授業観・教育観か）：</label>
-      <textarea
-        value={philosophy}
-        onChange={(e) => setPhilosophy(e.target.value)}
-        rows={3}
-        style={inputStyle}
-        aria-label="教育理念"
-      />
+      <section style={{
+        backgroundColor: "#f9f9f9",
+        padding: 24,
+        borderRadius: 8,
+        boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
+      }}>
+        <label style={{ display: "block", marginBottom: 12 }}>
+          モデル名（必須）：
+          <input
+            type="text"
+            value={form.name}
+            onChange={e => handleChange("name", e.target.value)}
+            style={{
+              width: "100%",
+              padding: "0.8rem",
+              fontSize: "1.1rem",
+              borderRadius: 6,
+              border: "1px solid #ccc",
+              marginTop: 4,
+            }}
+          />
+        </label>
 
-      <label style={labelStyle}>言語活動の重視点：</label>
-      <textarea
-        value={languageFocus}
-        onChange={(e) => setLanguageFocus(e.target.value)}
-        rows={2}
-        style={inputStyle}
-        aria-label="言語活動の重視点"
-      />
+        <label style={{ display: "block", marginBottom: 12 }}>
+          教育観（必須）：
+          <textarea
+            rows={2}
+            value={form.philosophy}
+            onChange={e => handleChange("philosophy", e.target.value)}
+            style={{
+              width: "100%",
+              padding: "0.8rem",
+              fontSize: "1.1rem",
+              borderRadius: 6,
+              border: "1px solid #ccc",
+              marginTop: 4,
+            }}
+          />
+        </label>
 
-      <label style={labelStyle}>評価観点の重視点：</label>
-      <textarea
-        value={evaluationFocus}
-        onChange={(e) => setEvaluationFocus(e.target.value)}
-        rows={2}
-        style={inputStyle}
-        aria-label="評価観点の重視点"
-      />
+        <label style={{ display: "block", marginBottom: 12 }}>
+          評価観点の重視点（必須）：
+          <textarea
+            rows={2}
+            value={form.evaluationFocus}
+            onChange={e => handleChange("evaluationFocus", e.target.value)}
+            style={{
+              width: "100%",
+              padding: "0.8rem",
+              fontSize: "1.1rem",
+              borderRadius: 6,
+              border: "1px solid #ccc",
+              marginTop: 4,
+            }}
+          />
+        </label>
 
-      <label style={labelStyle}>育てたい子ども像：</label>
-      <textarea
-        value={childFocus}
-        onChange={(e) => setChildFocus(e.target.value)}
-        rows={2}
-        style={inputStyle}
-        aria-label="育てたい子ども像"
-      />
+        <label style={{ display: "block", marginBottom: 12 }}>
+          言語活動の重視点（必須）：
+          <textarea
+            rows={2}
+            value={form.languageFocus}
+            onChange={e => handleChange("languageFocus", e.target.value)}
+            style={{
+              width: "100%",
+              padding: "0.8rem",
+              fontSize: "1.1rem",
+              borderRadius: 6,
+              border: "1px solid #ccc",
+              marginTop: 4,
+            }}
+          />
+        </label>
 
-      <button onClick={handleSave} style={buttonStyle}>
-        登録する
-      </button>
+        <label style={{ display: "block", marginBottom: 12 }}>
+          育てたい子どもの姿（必須）：
+          <textarea
+            rows={2}
+            value={form.childFocus}
+            onChange={e => handleChange("childFocus", e.target.value)}
+            style={{
+              width: "100%",
+              padding: "0.8rem",
+              fontSize: "1.1rem",
+              borderRadius: 6,
+              border: "1px solid #ccc",
+              marginTop: 4,
+            }}
+          />
+        </label>
+
+        <label style={{ display: "block", marginBottom: 24 }}>
+          更新メモ（任意）：
+          <textarea
+            rows={2}
+            value={form.note}
+            onChange={e => handleChange("note", e.target.value)}
+            style={{
+              width: "100%",
+              padding: "0.8rem",
+              fontSize: "1.1rem",
+              borderRadius: 6,
+              border: "1px solid #ccc",
+              marginTop: 4,
+              fontStyle: "italic",
+            }}
+          />
+        </label>
+
+        <div style={{ textAlign: "center" }}>
+          <button
+            onClick={handleSave}
+            style={{
+              padding: "0.8rem 2rem",
+              fontSize: "1.1rem",
+              backgroundColor: "#4CAF50",
+              color: "white",
+              border: "none",
+              borderRadius: 8,
+              cursor: "pointer",
+            }}
+          >
+            {editId ? "更新して保存" : "作成して保存"}
+          </button>
+        </div>
+      </section>
     </main>
   );
 }

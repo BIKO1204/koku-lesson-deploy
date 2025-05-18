@@ -1,3 +1,4 @@
+// app/models/[id]/page.tsx
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
@@ -6,119 +7,76 @@ import Link from "next/link";
 
 export default function StyleDetailPage() {
   const params = useParams();
-  // paramsがnullの可能性やidが配列かもを考慮して安全にidを取得
   const id = Array.isArray(params?.id) ? params.id[0] : params?.id ?? "";
   const router = useRouter();
   const [style, setStyle] = useState<any>(null);
   const [relatedPlans, setRelatedPlans] = useState<any[]>([]);
 
   useEffect(() => {
-    if (!id) return; // idがないなら何もしない
-
+    if (!id) return;
     const styleModels = JSON.parse(localStorage.getItem("styleModels") || "[]");
-    const foundStyle = styleModels.find((s: any) => s.id === id);
-    if (foundStyle) setStyle(foundStyle);
+    const found = styleModels.find((s: any) => s.id === id);
+    setStyle(found || null);
 
     const plans = JSON.parse(localStorage.getItem("lessonPlans") || "[]");
-    const matchedPlans = plans.filter((p: any) => p.usedStyleName === foundStyle?.name);
-    setRelatedPlans(matchedPlans);
+    setRelatedPlans(plans.filter((p: any) => p.usedStyleName === found?.name));
   }, [id]);
 
-  if (!style) return <p style={{ padding: "2rem" }}>スタイルを読み込んでいます...</p>;
+  if (!style) {
+    return <p style={{ padding: 24 }}>読み込み中…</p>;
+  }
 
   return (
-    <main style={{ padding: "2rem", maxWidth: "90vw", margin: "0 auto", fontFamily: "sans-serif" }}>
-      {/* 横並びアイコンナビゲーション */}
-      <nav
-        style={{
-          display: "flex",
-          gap: "1rem",
-          marginBottom: "2rem",
-          flexWrap: "wrap",
-          justifyContent: "center",
-        }}
-      >
-        <Link href="/" style={linkStyle}>🏠 ホーム</Link>
-        <Link href="/plan" style={linkStyle}>📋 授業作成</Link>
-        <Link href="/plan/history" style={linkStyle}>📖 計画履歴</Link>
-        <Link href="/practice/history" style={linkStyle}>📷 実践履歴</Link>
-        <Link href="/models/create" style={linkStyle}>✏️ 教育観作成</Link>
-        <Link href="/models" style={linkStyle}>📚 教育観一覧</Link>
+    <main style={{ padding: 24, maxWidth: 800, margin: "0 auto", fontFamily: "sans-serif" }}>
+      {/* 完全横並びナビ */}
+      <nav style={navStyle}>
+        {[
+          ["/", "🏠 ホーム"],
+          ["/plan", "📋 授業作成"],
+          ["/plan/history", "📖 計画履歴"],
+          ["/practice/history", "📷 実践履歴"],
+          ["/models", "📚 教育観一覧"],
+        ].map(([href, label]) => (
+          <button
+            key={href}
+            onClick={() => router.push(href)}
+            style={navButtonStyle}
+          >
+            {label}
+          </button>
+        ))}
       </nav>
 
-      <nav style={{ marginBottom: "2rem" }}>
-        <Link href="/models">← スタイル一覧へ</Link>
-      </nav>
+      <h1 style={{ fontSize: "1.6rem", margin: "1.5rem 0 1rem" }}>{style.name}</h1>
 
-      <h2 style={{ fontSize: "1.6rem", marginBottom: "1rem" }}>{style.name}</h2>
-
-      <section
-        style={{
-          marginBottom: "2rem",
-          background: "#f9f9f9",
-          padding: "1rem",
-          borderRadius: "10px",
-          whiteSpace: "pre-wrap",
-        }}
-      >
+      <section style={detailBoxStyle}>
         <p><strong>教育観：</strong><br />{style.philosophy}</p>
-        <p><strong>評価観点の重視：</strong><br />{style.evaluationFocus}</p>
-        <p><strong>言語活動の重視：</strong><br />{style.languageFocus}</p>
-        <p><strong>育てたい子ども像：</strong><br />{style.childFocus}</p>
+        <p><strong>評価観点：</strong><br />{style.evaluationFocus}</p>
+        <p><strong>言語活動：</strong><br />{style.languageFocus}</p>
+        <p><strong>育てたい姿：</strong><br />{style.childFocus}</p>
       </section>
 
       <button
         onClick={() => router.push(`/plan?styleId=${style.id}`)}
-        style={{
-          padding: "0.8rem 1.2rem",
-          fontSize: "1.1rem",
-          backgroundColor: "#4CAF50",
-          color: "white",
-          borderRadius: "10px",
-          border: "none",
-          marginBottom: "2rem",
-          cursor: "pointer",
-        }}
+        style={primaryButtonStyle}
       >
-        ▶︎ このスタイルで授業を作成する
+        ▶︎ このスタイルで授業作成
       </button>
 
-      <h3 style={{ fontSize: "1.3rem", marginBottom: "1rem" }}>このスタイルで作成した授業案</h3>
+      <h2 style={{ margin: "2rem 0 1rem", fontSize: "1.3rem" }}>このスタイルで作成した授業案</h2>
       {relatedPlans.length === 0 ? (
-        <p>まだこのスタイルで作成された授業案はありません。</p>
+        <p>まだありません。</p>
       ) : (
-        <ul style={{ listStyle: "none", paddingLeft: 0 }}>
-          {relatedPlans.map((plan) => (
-            <li
-              key={plan.id}
-              style={{
-                marginBottom: "1rem",
-                padding: "1rem",
-                border: "1px solid #ccc",
-                borderRadius: "10px",
-                backgroundColor: "#fdfdfd",
-              }}
-            >
-              <p>
-                <strong>{plan.unit}</strong>（{plan.grade}・{plan.genre}）
-              </p>
-              <p>授業時間：{plan.hours}時間</p>
-              <Link href="/plan/history">
-                <button
-                  style={{
-                    marginTop: "0.5rem",
-                    backgroundColor: "#2196F3",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "6px",
-                    padding: "0.5rem 1rem",
-                    fontSize: "0.95rem",
-                    cursor: "pointer",
-                  }}
-                >
-                  📖 履歴ページで確認
-                </button>
-              </Link>
+        <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+          {relatedPlans.map((p) => (
+            <li key={p.id} style={cardStyle}>
+              <p><strong>{p.unit}</strong> ({p.grade}・{p.genre})</p>
+              <button
+                onClick={() => router.push("/plan/history")}
+                style={secondaryButtonStyle}
+              >
+                📖 履歴で確認
+              </button>
             </li>
           ))}
         </ul>
@@ -127,16 +85,62 @@ export default function StyleDetailPage() {
   );
 }
 
-const linkStyle = {
+// --- スタイル ---
+const navStyle: React.CSSProperties = {
   display: "flex",
-  alignItems: "center",
-  gap: "0.3rem",
-  padding: "0.4rem 0.8rem",
-  backgroundColor: "#e0e0e0",
-  borderRadius: "8px",
-  textDecoration: "none",
-  color: "#333",
-  fontWeight: "bold",
+  gap: 12,
+  overflowX: "auto",
+  flexWrap: "nowrap",
+  padding: "8px 0",
+  marginBottom: 24,
+};
+
+const navButtonStyle: React.CSSProperties = {
+  flex: "0 0 auto",
+  backgroundColor: "#1976d2",
+  color: "#fff",
+  border: "none",
+  borderRadius: 6,
+  padding: "8px 12px",
   fontSize: "1rem",
+  cursor: "pointer",
+};
+
+const detailBoxStyle: React.CSSProperties = {
+  backgroundColor: "#f9f9f9",
+  padding: 16,
+  borderRadius: 8,
+  whiteSpace: "pre-wrap",
+};
+
+const primaryButtonStyle: React.CSSProperties = {
+  display: "block",
+  width: "100%",
+  backgroundColor: "#4CAF50",
+  color: "#fff",
+  border: "none",
+  borderRadius: 8,
+  padding: "12px 0",
+  fontSize: "1.1rem",
+  cursor: "pointer",
+};
+
+const cardStyle: React.CSSProperties = {
+  marginBottom: 16,
+  padding: 16,
+  border: "1px solid #ddd",
+  borderRadius: 8,
+  backgroundColor: "#fff",
+  boxShadow: "0 1px 4px rgba(0,0,0,0.1)",
+};
+
+const secondaryButtonStyle: React.CSSProperties = {
+  marginTop: 8,
+  backgroundColor: "#2196F3",
+  color: "#fff",
+  border: "none",
+  borderRadius: 6,
+  padding: "6px 12px",
+  fontSize: "0.95rem",
   cursor: "pointer",
 };
