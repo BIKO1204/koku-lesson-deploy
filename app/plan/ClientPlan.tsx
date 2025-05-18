@@ -210,9 +210,9 @@ export default function PlanPage() {
       </nav>
 
       <form onSubmit={handleSubmit}>
-        {/* スタイル選択 */}
+        {/* モデル選択 */}
         <label>
-          【スタイル選択】<br/>
+          【モデル選択】<br/>
           <select value={selectedStyleId} onChange={handleStyleChange} style={inputStyle}>
             <option value="">（未選択）</option>
             {styleModels.map(m=>(

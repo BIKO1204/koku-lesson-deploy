@@ -16,7 +16,7 @@ type EducationHistory = {
   note?: string;
 };
 
-export default function EducationStyleHistoryPage() {
+export default function EducationHistoryPage() {
   const [history, setHistory] = useState<EducationHistory[]>([]);
   const router = useRouter();
 
@@ -33,23 +33,33 @@ export default function EducationStyleHistoryPage() {
 
   return (
     <main style={mainStyle}>
-      {/* グローバルナビ */}
+      {/* ナビゲーション */}
       <nav style={navStyle}>
         {[
           ["/", "🏠 ホーム"],
           ["/plan", "📋 授業作成"],
           ["/plan/history", "📖 計画履歴"],
           ["/practice/history", "📷 実践履歴"],
-          ["/models/create", "✏️ 教育観作成"],
+          ["/models/create", "✏️ 教育観作成"],   // ←追加
           ["/models", "📚 教育観一覧"],
-        ].map(([href, label]) => (
-          <button
+          ["/models/history", "🕒 教育観履歴"],  // ←アクティブ
+                  ].map(([href, label]) => (
+          <Link
             key={href}
-            onClick={() => router.push(href)}
-            style={navButtonStyle}
+            href={href}
+            style={{
+              padding: "8px 12px",
+              backgroundColor:
+                href === "/models/history" ? "#4CAF50" : "#1976d2",
+              color: "#fff",
+              border: "none",
+              borderRadius: 6,
+              textDecoration: "none",
+              whiteSpace: "nowrap",
+            }}
           >
             {label}
-          </button>
+          </Link>
         ))}
       </nav>
 
@@ -107,17 +117,6 @@ const navStyle: React.CSSProperties = {
   marginBottom: 24,
 };
 
-const navButtonStyle: React.CSSProperties = {
-  flex: "0 0 auto",
-  backgroundColor: "#1976d2",
-  color: "#fff",
-  border: "none",
-  borderRadius: 6,
-  padding: "8px 12px",
-  fontSize: "1rem",
-  cursor: "pointer",
-};
-
 const titleStyle: React.CSSProperties = {
   fontSize: "1.8rem",
   marginBottom: 16,
@@ -126,7 +125,7 @@ const titleStyle: React.CSSProperties = {
 
 const listStyle: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "1fr",   // ← ここで1列に固定
+  gridTemplateColumns: "1fr",
   gap: 16,
 };
 
