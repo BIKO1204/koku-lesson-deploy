@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../contexts/AuthContext";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";  // updateDoc を外しました
 import { db } from "../firebaseConfig.js";
 
 export default function RegisterPage() {
@@ -22,7 +22,6 @@ export default function RegisterPage() {
     }
   }, [user, loading, router]);
 
-  // 読み込み中 or リダイレクト中は何も描画しない
   if (loading || user) {
     return null;
   }
@@ -42,11 +41,7 @@ export default function RegisterPage() {
       setError("招待コードが見つかりません。");
       return;
     }
-    const data = snap.data() as { used: boolean };
-    if (data.used) {
-      setError("その招待コードは既に使用されています。");
-      return;
-    }
+    // 「used」フラグのチェックは行いません
 
     // パスワード長チェック
     if (pw.length < 6) {
@@ -56,16 +51,9 @@ export default function RegisterPage() {
 
     try {
       // Firebase Auth でユーザー作成
-      const cred = await signup(email.trim(), pw);
+      await signup(email.trim(), pw);
 
-      // 招待コードを使い切る
-      await updateDoc(inviteRef, {
-        used: true,
-        usedBy: cred.user.uid,
-        usedAt: new Date().toISOString(),
-      });
-
-      // 完了後トップへ
+      // 使用済みフラグ更新は行わないので、このままトップへ
       router.replace("/");
     } catch (e: any) {
       console.error(e);
@@ -181,4 +169,3 @@ export default function RegisterPage() {
     </main>
   );
 }
-
