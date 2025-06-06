@@ -1,3 +1,4 @@
 "# koku-lesson-pwa" 
 "" 
 "" 
+はじめまして
