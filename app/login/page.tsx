@@ -1,28 +1,30 @@
-// app/login/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useAuth } from "../contexts/AuthContext";
+import { useSession, signIn } from "next-auth/react";
 
 export default function LoginPage() {
-  const { user, loading, login } = useAuth();
+  const { data: session, status } = useSession();
   const router = useRouter();
+
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [error, setError] = useState("");
 
-  // すでにログイン済みならダッシュボードへ
+  // ログイン済みならリダイレクト
   useEffect(() => {
-    if (!loading && user) {
+    if (status === "authenticated") {
+      // 型安全にaccessTokenをチェックしてlocalStorageに保存
+      if (session && typeof (session as any).accessToken === "string") {
+        localStorage.setItem("googleAccessToken", (session as any).accessToken);
+      }
       router.replace("/");
     }
-  }, [user, loading, router]);
+  }, [session, status, router]);
 
-  // 読み込み中 or リダイレクト中は何も描画しない
-  if (loading || user) {
-    return null;
+  if (status === "loading") {
+    return null; // 読み込み中は何も表示しない
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,11 +35,10 @@ export default function LoginPage() {
       return;
     }
     try {
-      await login(email.trim(), pw);
-      router.replace("/"); // ログイン成功後、ダッシュボードへ
+      // ここはfirebaseログインなど独自のlogin関数ならそれに置き換えてください
+      await signIn("credentials", { email: email.trim(), password: pw });
     } catch (e: any) {
-      console.error(e);
-      setError("ログインに失敗しました。メールアドレスかパスワードを確認してください。");
+      setError("ログインに失敗しました。");
     }
   };
 
@@ -59,7 +60,7 @@ export default function LoginPage() {
         style={{
           width: "100%",
           maxWidth: 480,
-          background: "#ffffff",
+          background: "#fff",
           borderRadius: 16,
           boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
           padding: "2rem",
@@ -126,26 +127,30 @@ export default function LoginPage() {
           </p>
         )}
 
-        <p
+        <div
           style={{
-            fontSize: "1rem",
-            color: "#666",
+            marginTop: "1rem",
+            borderTop: "1px solid #ccc",
+            paddingTop: "1rem",
             textAlign: "center",
-            margin: 0,
           }}
         >
-          招待コードで登録されていない方は{" "}
-          <Link
-            href="/register"
+          <button
+            type="button"
+            onClick={() => signIn("google")}
             style={{
-              color: "#1976d2",
-              textDecoration: "underline",
-              fontSize: "1rem",
+              padding: "1rem 2rem",
+              fontSize: "1.2rem",
+              backgroundColor: "#4285F4",
+              color: "white",
+              border: "none",
+              borderRadius: 8,
+              cursor: "pointer",
             }}
           >
-            こちら
-          </Link>
-        </p>
+            Googleアカウントでログイン
+          </button>
+        </div>
       </form>
     </main>
   );

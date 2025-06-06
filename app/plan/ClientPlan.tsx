@@ -1,73 +1,156 @@
-// app/plan/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, CSSProperties, FormEvent } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { v4 as uuidv4 } from "uuid";
+import { useRouter, useSearchParams } from "next/navigation";
 import Papa from "papaparse";
-import { db } from "../firebaseConfig.js";
-import { collection, addDoc } from "firebase/firestore";
+import { db } from "../firebaseConfig";
+import { doc, setDoc } from "firebase/firestore";
+import { useSession } from "next-auth/react";
 
-export default function PlanPage() {
-  // モード設定
-  const [mode, setMode] = useState<"ai" | "manual">("ai");
+const EDIT_KEY = "editLessonPlan";
 
-  // 教育観スタイル
-  const [styleModels, setStyleModels]         = useState<any[]>([]);
-  const [selectedStyleId, setSelectedStyleId] = useState<string>("");
-  const [selectedStyle, setSelectedStyle]     = useState<any>(null);
+// Google Drive フォルダID（環境に合わせて差し替え or 外部import推奨）
+const GOOGLE_DRIVE_FOLDER_ID = "1BJPdPWLPq1N5Nqf0-rAj6CzFVfUkU__9";
 
-  // フォーム入力状態
-  const [subject, setSubject]                 = useState("東京書籍");
-  const [grade, setGrade]                     = useState("1年");
-  const [genre, setGenre]                     = useState("物語文");
-  const [unit, setUnit]                       = useState("");
-  const [hours, setHours]                     = useState("");
-  const [unitGoal, setUnitGoal]               = useState("");
-  const [evaluationPoints, setEvaluationPoints] = useState({
-    knowledge: [""],
-    thinking:  [""],
-    attitude:  [""],
-  });
-  const [childImage, setChildImage]           = useState("");
-  const [lessonPlanList, setLessonPlanList]   = useState<string[]>([]);
-  const [languageActivities, setLanguageActivities] = useState("");
-  const [loading, setLoading]                 = useState(false);
-  const [result, setResult]                   = useState("");
+type StyleModel = {
+  id: string;
+  name: string;
+  content: string;
+};
 
+type ParsedResult = {
+  [key: string]: any;
+};
+
+type EvaluationPoints = {
+  knowledge: string[];
+  thinking: string[];
+  attitude: string[];
+};
+
+type LessonPlanStored = {
+  id: string;
+  subject: string;
+  grade: string;
+  genre: string;
+  unit: string;
+  hours: string | number;
+  unitGoal: string;
+  evaluationPoints: EvaluationPoints;
+  childVision: string;
+  lessonPlanList: string[];
+  languageActivities: string;
+  selectedStyleId: string;
+  result: ParsedResult;
+  timestamp: string;
+  usedStyleName?: string | null;
+};
+
+export default function ClientPlan() {
+  // NextAuth セッション取得（アクセストークン含む）
+  const { data: session, status } = useSession();
+
+  useEffect(() => {
+    console.log("ログイン状態:", status);
+    console.log("セッション情報:", session);
+  }, [session, status]);
+
+  const router = useRouter();
   const searchParams = useSearchParams() as URLSearchParams;
 
-  // localStorage からスタイル読み込み
+  const [mode, setMode] = useState<"ai" | "manual">("ai");
+  const [styleModels, setStyleModels] = useState<StyleModel[]>([]);
+  const [selectedStyleId, setSelectedStyleId] = useState<string>("");
+
+  const [subject, setSubject] = useState("東京書籍");
+  const [grade, setGrade] = useState("1年");
+  const [genre, setGenre] = useState("物語文");
+  const [unit, setUnit] = useState("");
+  const [hours, setHours] = useState("");
+  const [unitGoal, setUnitGoal] = useState("");
+
+  const [evaluationPoints, setEvaluationPoints] = useState<EvaluationPoints>({
+    knowledge: [""],
+    thinking: [""],
+    attitude: [""],
+  });
+
+  const [childVision, setChildVision] = useState("");
+  const [languageActivities, setLanguageActivities] = useState("");
+  const [lessonPlanList, setLessonPlanList] = useState<string[]>([]);
+
+  const [loading, setLoading] = useState(false);
+  const [parsedResult, setParsedResult] = useState<ParsedResult | null>(null);
+
+  const [editId, setEditId] = useState<string | null>(null);
+  const [initialData, setInitialData] = useState<LessonPlanStored | null>(null);
+
+  // 初期読み込み（編集モード判定）
   useEffect(() => {
-    const stored = localStorage.getItem("styleModels");
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      setStyleModels(parsed);
-      const styleId = searchParams.get("styleId");
-      if (styleId) {
-        const found = parsed.find((m: any) => m.id === styleId);
-        if (found) {
-          setSelectedStyleId(styleId);
-          setSelectedStyle(found);
-        }
+    const storedEdit = localStorage.getItem(EDIT_KEY);
+    if (storedEdit) {
+      try {
+        const plan = JSON.parse(storedEdit) as LessonPlanStored;
+        setEditId(plan.id);
+        setSubject(plan.subject);
+        setGrade(plan.grade);
+        setGenre(plan.genre);
+        setUnit(plan.unit);
+        setHours(String(plan.hours));
+        setUnitGoal(plan.unitGoal);
+        setEvaluationPoints(plan.evaluationPoints);
+        setChildVision(plan.childVision);
+        setLanguageActivities(plan.languageActivities);
+        setLessonPlanList(plan.lessonPlanList);
+        setSelectedStyleId(plan.selectedStyleId);
+        setParsedResult(plan.result);
+        setInitialData(plan);
+        setMode("ai");
+      } catch {
+        setEditId(null);
+        setInitialData(null);
+        localStorage.removeItem(EDIT_KEY);
       }
+    }
+    const styleIdParam = searchParams.get("styleId");
+    if (styleIdParam) {
+      setSelectedStyleId(styleIdParam);
     }
   }, [searchParams]);
 
-  // CSV から評価観点テンプレートを読み込み
+  // 教育観モデル読み込み
+  useEffect(() => {
+    const storedModels = localStorage.getItem("styleModels");
+    if (storedModels) {
+      try {
+        const arr = JSON.parse(storedModels) as StyleModel[];
+        setStyleModels(arr);
+      } catch {
+        setStyleModels([]);
+      }
+    }
+  }, []);
+
+  // CSVテンプレート読み込み（評価の観点）
   useEffect(() => {
     fetch("/templates.csv")
-      .then(res => res.text())
-      .then(csvText => {
-        const parsed = Papa.parse(csvText, { header: true }).data as any[];
-        const matched = parsed.filter(
-          row => row.学年 === grade && row.ジャンル === genre
+      .then((res) => res.text())
+      .then((text) => {
+        const data = Papa.parse(text, { header: true }).data as any[];
+        const matched = data.filter(
+          (r) => r.学年 === grade && r.ジャンル === genre
         );
-        const grouped = {
-          knowledge: matched.filter(r => r.観点 === "knowledge").map(r => r.内容),
-          thinking:  matched.filter(r => r.観点 === "thinking").map(r => r.内容),
-          attitude:  matched.filter(r => r.観点 === "attitude").map(r => r.内容),
+        const grouped: EvaluationPoints = {
+          knowledge: matched
+            .filter((r) => r.観点 === "knowledge")
+            .map((r) => r.内容),
+          thinking: matched
+            .filter((r) => r.観点 === "thinking")
+            .map((r) => r.内容),
+          attitude: matched
+            .filter((r) => r.観点 === "attitude")
+            .map((r) => r.内容),
         };
         if (
           grouped.knowledge.length ||
@@ -76,265 +159,680 @@ export default function PlanPage() {
         ) {
           setEvaluationPoints(grouped);
         }
-      });
+      })
+      .catch(() => {});
   }, [grade, genre]);
 
-  // ハンドラー群
+  // 教育観モデル選択変更ハンドラ
   const handleStyleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const id = e.target.value;
-    setSelectedStyleId(id);
-    const found = styleModels.find(m => m.id === id);
-    setSelectedStyle(found || null);
+    setSelectedStyleId(e.target.value);
   };
-  const handleLessonChange = (i: number, v: string) => {
-    const copy = [...lessonPlanList];
-    copy[i] = v;
-    setLessonPlanList(copy);
-  };
-  const handleAddPoint = (f: keyof typeof evaluationPoints) => {
-    setEvaluationPoints(p => ({ ...p, [f]: [...p[f], ""] }));
-  };
-  const handleRemovePoint = (f: keyof typeof evaluationPoints, i: number) => {
-    setEvaluationPoints(p => ({
+
+  // 評価の観点追加・削除・変更ハンドラ
+  const handleAddPoint = (f: keyof EvaluationPoints) =>
+    setEvaluationPoints((p) => ({ ...p, [f]: [...p[f], ""] }));
+
+  const handleRemovePoint = (f: keyof EvaluationPoints, i: number) =>
+    setEvaluationPoints((p) => ({
       ...p,
       [f]: p[f].filter((_, idx) => idx !== i),
     }));
-  };
-  const handleChangePoint = (f: keyof typeof evaluationPoints, i: number, v: string) => {
-    const updated = [...evaluationPoints[f]];
-    updated[i] = v;
-    setEvaluationPoints(p => ({ ...p, [f]: updated }));
+
+  const handleChangePoint = (
+    f: keyof EvaluationPoints,
+    i: number,
+    v: string
+  ) => {
+    const arr = [...evaluationPoints[f]];
+    arr[i] = v;
+    setEvaluationPoints((p) => ({ ...p, [f]: arr }));
   };
 
-  // 授業案生成／表示
-  const handleSubmit = async (e: React.FormEvent) => {
+  // 授業展開手入力変更ハンドラ
+  const handleLessonChange = (i: number, v: string) => {
+    const arr = [...lessonPlanList];
+    arr[i] = v;
+    setLessonPlanList(arr);
+  };
+
+  // 授業案生成・表示ボタン（Submit）処理
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setResult("");
+    setParsedResult(null);
 
-    const lessonText = lessonPlanList.map((t,i) => `${i+1}時間目：${t}`).join("\n");
-    const evalText = `① 知識・技能：\n${evaluationPoints.knowledge.map(p=>`・${p}`).join("\n")}\n② 思考・判断・表現：\n${evaluationPoints.thinking.map(p=>`・${p}`).join("\n")}\n③ 主体的に学習に取り組む態度：\n${evaluationPoints.attitude.map(p=>`・${p}`).join("\n")}`.trim();
+    const count = Number(hours) || 0;
+    const newList = Array.from({ length: count }, (_, i) => lessonPlanList[i] || "");
+    setLessonPlanList(newList);
 
     if (mode === "manual") {
-      const manual = `【単元名】${unit}\n【単元の目標】\n${unitGoal}\n【評価の観点】\n${evalText}\n【育てたい子どもの姿】\n${childImage}\n【授業の展開】\n${lessonText}\n【言語活動の工夫】\n${languageActivities}`;
-      setResult(manual.replace(/生徒/g,"児童"));
+      const manualFlow: Record<string, string> = {};
+      newList.forEach((step, idx) => {
+        manualFlow[`${idx + 1}時間目`] = step;
+      });
+
+      const manualResult: ParsedResult = {
+        "教科書名": subject,
+        "学年": grade,
+        "ジャンル": genre,
+        "単元名": unit,
+        "授業時間数": count,
+        "単元の目標": unitGoal,
+        "評価の観点": {
+          "知識・技能": evaluationPoints.knowledge,
+          "思考・判断・表現": evaluationPoints.thinking,
+          "主体的に学習に取り組む態度": evaluationPoints.attitude,
+        },
+        "育てたい子どもの姿": childVision,
+        "授業の流れ": manualFlow,
+        "言語活動の工夫": languageActivities,
+        "結果": "",
+      };
+
+      setParsedResult(manualResult);
       setLoading(false);
       return;
     }
 
+    // AIモードの場合はAPIに投げて取得
     try {
+      const selectedModel = styleModels.find((m) => m.id === selectedStyleId);
+      const modelContent = selectedModel ? selectedModel.content : "";
+
+      const flowLines = newList
+        .map((step, idx) => {
+          if (step.trim()) {
+            return `${idx + 1}時間目: ${step}`;
+          } else {
+            return `${idx + 1}時間目: `;
+          }
+        })
+        .join("\n");
+
+      const prompt = `
+あなたは小学校の国語の授業プランナーです。
+${modelContent ? `以下の教育観を反映してください。\n${modelContent}\n` : ""}
+
+【教科書名】${subject}
+【学年】${grade}
+【ジャンル】${genre}
+【単元名】${unit}
+【授業時間数】${count}
+
+■ 単元の目標:
+${unitGoal}
+
+■ 評価の観点 (JSON 配列形式):
+知識・技能=${evaluationPoints.knowledge.join("、")};
+思考・判断・表現=${evaluationPoints.thinking.join("、")};
+主体的に学習に取り組む態度=${evaluationPoints.attitude.join("、")}
+
+■ 育てたい子どもの姿:
+${childVision}
+
+■ 授業の流れ:
+${flowLines}
+
+※上記で「n時間目: 」だけ書かれている箇所は、AI が自動生成してください。
+
+■ 言語活動の工夫:
+${languageActivities}
+
+—返却フォーマット—
+{
+  "教科書名": string,
+  "学年": string,
+  "ジャンル": string,
+  "単元名": string,
+  "授業時間数": number,
+  "単元の目標": string,
+  "評価の観点": {
+    "知識・技能": string[],
+    "思考・判断・表現": string[],
+    "主体的に学習に取り組む態度": string[]
+  },
+  "育てたい子どもの姿": string,
+  "授業の流れ": {
+    "1時間目": string,
+    "2時間目": string,
+    // … 
+    "${count}時間目": string
+  },
+  "言語活動の工夫": string,
+  "結果": string
+}
+      `;
+
       const res = await fetch("/api/generate", {
         method: "POST",
-        headers: { "Content-Type":"application/json" },
-        body: JSON.stringify({
-          promptHeader: selectedStyle
-            ? `【教育観】\n${selectedStyle.philosophy}\n【評価観点の重視】\n${selectedStyle.evaluationFocus}\n【言語活動の重視】\n${selectedStyle.languageFocus}\n【育てたい子どもの姿】\n${selectedStyle.childFocus}\n`
-            : "",
-          subject, grade, genre, unit, hours, unitGoal,
-          evaluationPoints: evalText,
-          childImage, lessonPlan: lessonText, languageActivities
-        })
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
       });
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
-      setResult(data.result.replace(/生徒/g,"児童"));
-    } catch (err) {
-      console.error(err);
-      alert("生成に失敗しました。");
+      const text = await res.text();
+
+      if (!res.ok) {
+        throw new Error(text || res.statusText);
+      }
+
+      let data: any;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error("サーバーから無効なJSONが返ってきました");
+      }
+
+      setParsedResult(data as ParsedResult);
+    } catch (e: any) {
+      alert(`生成に失敗しました：${e.message}`);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  // Firestore + localStorage に保存
-  const handleSaveBoth = async () => {
-    if (!result) { alert("まず生成してください"); return; }
-    const replaced = result.replace(/生徒/g,"児童");
-    const timestamp = new Date().toISOString();
-    const id = uuidv4();
-    const entry = {
-      id, timestamp,
-      subject, grade, genre, unit, hours, unitGoal,
-      evaluationPoints, childImage, lessonPlanList, languageActivities,
-      result: replaced, usedStyleName: selectedStyle?.name||null
+  // Google Driveアップロード処理
+  const uploadPdfToGoogleDrive = async (pdfBlob: Blob, fileName: string, accessToken: string) => {
+    const metadata = {
+      name: fileName,
+      mimeType: "application/pdf",
+      parents: [GOOGLE_DRIVE_FOLDER_ID],
     };
-    try {
-      await addDoc(collection(db,"lesson_plans"), entry);
-      const existing = JSON.parse(localStorage.getItem("lessonPlans")||"[]");
-      localStorage.setItem("lessonPlans", JSON.stringify([entry, ...existing]));
-      alert("✅ 保存しました");
-    } catch (e) {
-      console.error(e);
-      alert("❌ 保存失敗");
+
+    const formData = new FormData();
+    formData.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
+    formData.append("file", pdfBlob);
+
+    const res = await fetch(
+      "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: formData,
+      }
+    );
+
+    if (!res.ok) throw new Error("Google Driveアップロード失敗");
+    return await res.json();
+  };
+  // 一括保存ボタン処理：ローカル・Firestore・Driveに保存
+  const handleSaveAll = async () => {
+    if (!parsedResult) {
+      alert("まず授業案を生成してください");
+      return;
     }
-  };
 
-  // PDF 出力
-  const handlePdfDownload = async () => {
-    const html2pdf = (await import("html2pdf.js")).default;
+    const isEdit = Boolean(editId);
+    const idToUse = isEdit ? editId! : Date.now().toString();
+    const timestamp = new Date().toISOString();
+
+    const existingArr: LessonPlanStored[] = JSON.parse(localStorage.getItem("lessonPlans") || "[]");
+
+    if (isEdit) {
+      const newArr = existingArr.map((p) =>
+        p.id === idToUse
+          ? {
+              id: idToUse,
+              subject,
+              grade,
+              genre,
+              unit,
+              hours,
+              unitGoal,
+              evaluationPoints,
+              childVision,
+              lessonPlanList,
+              languageActivities,
+              selectedStyleId,
+              result: parsedResult,
+              timestamp,
+              usedStyleName: styleModels.find((m) => m.id === selectedStyleId)?.name ?? null,
+            }
+          : p
+      );
+      localStorage.setItem("lessonPlans", JSON.stringify(newArr));
+    } else {
+      const newPlan: LessonPlanStored = {
+        id: idToUse,
+        subject,
+        grade,
+        genre,
+        unit,
+        hours,
+        unitGoal,
+        evaluationPoints,
+        childVision,
+        lessonPlanList,
+        languageActivities,
+        selectedStyleId,
+        result: parsedResult,
+        timestamp,
+        usedStyleName: styleModels.find((m) => m.id === selectedStyleId)?.name ?? null,
+      };
+      existingArr.push(newPlan);
+      localStorage.setItem("lessonPlans", JSON.stringify(existingArr));
+    }
+
+    try {
+      await setDoc(
+        doc(db, "lesson_plans", idToUse),
+        {
+          subject,
+          grade,
+          genre,
+          unit,
+          hours,
+          unitGoal,
+          evaluationPoints,
+          childVision,
+          lessonPlanList,
+          languageActivities,
+          selectedStyleId,
+          result: parsedResult,
+          timestamp,
+          usedStyleName: styleModels.find((m) => m.id === selectedStyleId)?.name ?? null,
+        },
+        { merge: true }
+      );
+    } catch {
+      alert("Firestoreへの保存中にエラーが発生しました");
+      return;
+    }
+
+    // PDF Blob生成＋Google Driveアップロード
     const el = document.getElementById("result-content");
-    if (!el) return;
-    html2pdf().from(`<pre>${el.textContent}</pre>`).set({
-      margin:10,
-      filename:`${unit}_授業案.pdf`,
-      html2canvas:{scale:2}
-    }).save();
+    if (!el) {
+      alert("結果表示の要素が見つかりません");
+      return;
+    }
+
+    try {
+      const html2pdf = (await import("html2pdf.js")).default;
+      const pdfBlob: Blob = await new Promise((resolve, reject) => {
+        html2pdf()
+          .from(el)
+          .outputPdf("blob")
+          .then(resolve)
+          .catch(reject);
+      });
+
+      const accessToken = session?.accessToken;
+      if (!accessToken) {
+        alert("Google Driveアップロード用のアクセストークンがありません。ログインしてください。");
+        return;
+      }
+
+      await uploadPdfToGoogleDrive(pdfBlob, `${unit}_授業案.pdf`, accessToken);
+    } catch (e: any) {
+      alert(`Google Driveへの保存に失敗しました：${e.message || e}`);
+      return;
+    }
+
+    localStorage.removeItem(EDIT_KEY);
+    alert("一括保存しました（ローカル・Firestore・Drive）");
+    router.push("/plan/history");
   };
 
-  // スタイル定義
-  const inputStyle: React.CSSProperties = {
-    width:"100%", padding:"0.8rem", fontSize:"1.1rem",
-    borderRadius:8, border:"1px solid #ccc", marginBottom:"1rem"
+  // PDFダウンロードのみ
+  const handlePdfDownloadOnly = async () => {
+    if (!parsedResult) {
+      alert("まず授業案を生成してください");
+      return;
+    }
+
+    const el = document.getElementById("result-content");
+    if (!el) return alert("PDF生成対象がありません");
+    const html2pdf = (await import("html2pdf.js")).default;
+    html2pdf()
+      .from(el)
+      .set({
+        margin: 5,
+        filename: `${unit}_授業案.pdf`,
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        pagebreak: { mode: ["avoid-all"] },
+      })
+      .save();
   };
-  const navBarStyle: React.CSSProperties = {
-    display:"flex", gap:"1rem", overflowX:"auto",
-    padding:"1rem", backgroundColor:"#f0f0f0",
-    borderRadius:8, marginBottom:"2rem", whiteSpace:"nowrap"
+
+  // スタイル（元コードから）
+  const containerStyle: CSSProperties = { maxWidth: 800, margin: "auto", padding: "1rem" };
+  const cardStyle: CSSProperties = {
+    border: "1px solid #ddd",
+    borderRadius: 8,
+    padding: "1rem",
+    marginBottom: "1rem",
+    backgroundColor: "#fff",
+    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
   };
-  const navLinkStyle: React.CSSProperties = {
-    display:"flex", alignItems:"center", gap:"0.5rem",
-    padding:"0.5rem 1rem", backgroundColor:"#1976d2",
-    color:"white", fontWeight:"bold", borderRadius:6,
-    textDecoration:"none"
+  const titleStyle: CSSProperties = { fontSize: "1.2rem", fontWeight: "bold", marginBottom: "0.5rem" };
+  const listStyle: CSSProperties = { paddingLeft: "1rem", marginTop: "0.5rem" };
+  const inputStyle: CSSProperties = {
+    width: "100%",
+    padding: "0.8rem",
+    fontSize: "1.1rem",
+    borderRadius: 8,
+    border: "1px solid #ccc",
+    marginBottom: "1rem",
+  };
+  const navStyle: CSSProperties = {
+    display: "flex",
+    gap: "1rem",
+    overflowX: "auto",
+    padding: "1rem",
+    backgroundColor: "#f0f0f0",
+    borderRadius: 8,
+    marginBottom: "2rem",
+    whiteSpace: "nowrap",
+  };
+  const navLinkStyle: CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.5rem",
+    padding: "0.5rem 1rem",
+    backgroundColor: "#1976d2",
+    color: "white",
+    fontWeight: "bold",
+    borderRadius: 6,
+    textDecoration: "none",
   };
 
   return (
-    <main style={{ padding:"1.5rem", fontFamily:"sans-serif", maxWidth:"90vw", margin:"0 auto" }}>
-      <nav style={navBarStyle}>
-        <Link href="/"             style={navLinkStyle}>🏠 ホーム</Link>
-        <Link href="/plan"         style={navLinkStyle}>📋 授業作成</Link>
+    <main style={containerStyle}>
+      <nav style={navStyle}>
+        <Link href="/" style={navLinkStyle}>🏠 ホーム</Link>
+        <Link href="/plan" style={navLinkStyle}>📋 授業作成</Link>
         <Link href="/plan/history" style={navLinkStyle}>📖 計画履歴</Link>
         <Link href="/practice/history" style={navLinkStyle}>📷 実践履歴</Link>
-        <Link href="/models/create"    style={navLinkStyle}>✏️ 教育観作成</Link>
-        <Link href="/models"           style={navLinkStyle}>📚 教育観一覧</Link>
-        <Link href="/models/history"   style={navLinkStyle}>🕒 教育観履歴</Link>
+        <Link href="/models/create" style={navLinkStyle}>✏️ 教育観作成</Link>
+        <Link href="/models" style={navLinkStyle}>📚 教育観覧</Link>
+        <Link href="/models/history" style={navLinkStyle}>🕒 教育観履歴</Link>
       </nav>
 
       <form onSubmit={handleSubmit}>
-        {/* モデル選択 */}
+        <div style={{ marginBottom: "1rem" }}>
+          <label style={{ marginRight: "1rem" }}>
+            <input
+              type="radio"
+              value="ai"
+              checked={mode === "ai"}
+              onChange={() => setMode("ai")}
+            /> AIモード
+          </label>
+          <label>
+            <input
+              type="radio"
+              value="manual"
+              checked={mode === "manual"}
+              onChange={() => setMode("manual")}
+            /> 手動モード
+          </label>
+        </div>
+
         <label>
-          【モデル選択】<br/>
+          モデル選択：<br/>
           <select value={selectedStyleId} onChange={handleStyleChange} style={inputStyle}>
             <option value="">（未選択）</option>
-            {styleModels.map(m=>(
+            {styleModels.map((m) => (
               <option key={m.id} value={m.id}>{m.name}</option>
             ))}
           </select>
         </label>
 
-        {/* 選択スタイルの詳細 */}
-        {selectedStyle && (
-          <div style={{
-            background:"#f9f9f9", padding:"1rem", borderRadius:8, margin:"1rem 0", fontSize:"0.95rem"
-          }}>
-            <p><strong>教育観：</strong>{selectedStyle.philosophy}</p>
-            <p><strong>評価観点：</strong>{selectedStyle.evaluationFocus}</p>
-            <p><strong>言語活動：</strong>{selectedStyle.languageFocus}</p>
-            <p><strong>育てたい子どもの姿：</strong>{selectedStyle.childFocus}</p>
-          </div>
-        )}
-
-        {/* モード選択 */}
-        <div style={{ marginBottom:"1rem" }}>
-          <label><input type="radio" value="ai" checked={mode==="ai"} onChange={()=>setMode("ai")} /> AIで作成</label><br/>
-          <label><input type="radio" value="manual" checked={mode==="manual"} onChange={()=>setMode("manual")} /> 自分入力</label>
-        </div>
-
-        {/* 教科書・学年・ジャンル */}
-        <label>教科書名：<br/>
-          <select value={subject} onChange={e=>setSubject(e.target.value)} style={inputStyle}>
-            <option>東京書籍</option>
-            <option>光村図書</option>
-            <option>教育出版</option>
+        <label>
+          教科書名：<br/>
+          <select value={subject} onChange={(e) => setSubject(e.target.value)} style={inputStyle}>
+            <option>東京書籍</option><option>光村図書</option><option>教育出版</option>
           </select>
         </label>
-        <label>学年：<br/>
-          <select value={grade} onChange={e=>setGrade(e.target.value)} style={inputStyle}>
+
+        <label>
+          学年：<br/>
+          <select value={grade} onChange={(e) => setGrade(e.target.value)} style={inputStyle}>
             <option>1年</option><option>2年</option><option>3年</option>
             <option>4年</option><option>5年</option><option>6年</option>
           </select>
         </label>
-        <label>ジャンル：<br/>
-          <select value={genre} onChange={e=>setGenre(e.target.value)} style={inputStyle}>
+
+        <label>
+          ジャンル：<br/>
+          <select value={genre} onChange={(e) => setGenre(e.target.value)} style={inputStyle}>
             <option>物語文</option><option>説明文</option><option>詩</option>
           </select>
         </label>
 
-        {/* 単元名・時間数 */}
-        <label>単元名：<br/>
-          <input type="text" value={unit} onChange={e=>setUnit(e.target.value)} required style={inputStyle}/>
-        </label>
-        <label>授業時間数：<br/>
-          <input type="number" min="1" value={hours} onChange={e=>setHours(e.target.value)} style={inputStyle}/>
-        </label>
-
-        {/* 単元の目標 */}
-        <label>■ 単元の目標：<br/>
-          <textarea value={unitGoal} onChange={e=>setUnitGoal(e.target.value)} rows={2} style={inputStyle}/>
+        <label>
+          単元名：<br/>
+          <input
+            type="text"
+            value={unit}
+            onChange={(e) => setUnit(e.target.value)}
+            style={inputStyle}
+          />
         </label>
 
-        {/* 評価観点 */}
-        {(["knowledge","thinking","attitude"] as const).map(f=>(
-          <div key={f}>
-            <label>{
-              f==="knowledge"?"① 知識・技能：" :
-              f==="thinking"?"② 思考・判断・表現：" :
-              "③ 主体的に学習に取り組む態度："
-            }</label>
-            {evaluationPoints[f].map((v,i)=>(
-              <div key={i} style={{ display:"flex", gap:"0.5rem", marginBottom:"0.5rem" }}>
-                <textarea value={v} onChange={e=>handleChangePoint(f,i,e.target.value)} style={{ ...inputStyle, flex:1 }}/>
-                <button type="button" onClick={()=>handleRemovePoint(f,i)}>🗑</button>
+        <label>
+          授業時間数：<br/>
+          <input
+            type="number"
+            value={hours}
+            onChange={(e) => setHours(e.target.value)}
+            style={inputStyle}
+          />
+        </label>
+
+        <label>
+          ■ 単元の目標：<br/>
+          <textarea
+            value={unitGoal}
+            onChange={(e) => setUnitGoal(e.target.value)}
+            rows={2}
+            style={inputStyle}
+          />
+        </label>
+
+        {(["knowledge", "thinking", "attitude"] as const).map((f) => (
+          <div key={f} style={{ marginBottom: "1rem" }}>
+            <label style={{ display: "block", marginBottom: "0.5rem" }}>
+              {f === "knowledge"
+                ? "① 知識・技能："
+                : f === "thinking"
+                ? "② 思考・判断・表現："
+                : "③ 主体的に学習に取り組む態度："}
+            </label>
+            {evaluationPoints[f].map((v, i) => (
+              <div
+                key={i}
+                style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}
+              >
+                <textarea
+                  value={v}
+                  onChange={(e) => handleChangePoint(f, i, e.target.value)}
+                  style={{ ...inputStyle, flex: 1 }}
+                />
+                <button type="button" onClick={() => handleRemovePoint(f, i)}>
+                  🗑
+                </button>
               </div>
             ))}
-            <button type="button" onClick={()=>handleAddPoint(f)}>＋ 追加</button>
+            <button
+              type="button"
+              onClick={() => handleAddPoint(f)}
+              style={{ ...inputStyle, backgroundColor: "#9C27B0", color: "white" }}
+            >
+              ＋ 追加
+            </button>
           </div>
         ))}
 
-        {/* 育てたい子どもの姿 */}
-        <label>育てたい子どもの姿：<br/>
-          <textarea value={childImage} onChange={e=>setChildImage(e.target.value)} rows={2} style={inputStyle}/>
+        <label>
+          ■ 育てたい子どもの姿：<br/>
+          <textarea
+            value={childVision}
+            onChange={(e) => setChildVision(e.target.value)}
+            rows={2}
+            style={inputStyle}
+          />
         </label>
 
-        {/* 展開欄生成 */}
-        {hours && lessonPlanList.length !== Number(hours) && (
-          <button type="button" onClick={()=>{
-            const cnt = Number(hours);
-            setLessonPlanList(Array.from({ length:cnt},(_,i)=>lessonPlanList[i]||""));
-          }} style={{ ...inputStyle, backgroundColor:"#03A9F4", color:"white" }}>
-            ⏱ 展開欄生成
-          </button>
+        <label>
+          ■ 言語活動の工夫：<br/>
+          <textarea
+            value={languageActivities}
+            onChange={(e) => setLanguageActivities(e.target.value)}
+            rows={2}
+            style={inputStyle}
+          />
+        </label>
+
+        {hours && (
+          <div style={{ marginBottom: "1rem" }}>
+            <div style={{ marginBottom: "0.5rem" }}>
+              ■ 授業の展開（手動で入力／空欄はAIが生成）
+            </div>
+            {Array.from({ length: Number(hours) }, (_, i) => (
+              <div
+                key={i}
+                style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}
+              >
+                <span style={{ width: "4rem", lineHeight: "2rem" }}>{i + 1}時間目:</span>
+                <textarea
+                  value={lessonPlanList[i] || ""}
+                  onChange={(e) => handleLessonChange(i, e.target.value)}
+                  style={{ ...inputStyle, flex: 1 }}
+                />
+              </div>
+            ))}
+          </div>
         )}
 
-        {/* 展開欄 */}
-        {lessonPlanList.map((t,i)=>(
-          <label key={i}>{i+1}時間目：<br/>
-            <textarea value={t} onChange={e=>handleLessonChange(i,e.target.value)} rows={2} style={inputStyle}/>
-          </label>
-        ))}
-
-        {/* 言語活動 */}
-        <label>言語活動の工夫：<br/>
-          <textarea value={languageActivities} onChange={e=>setLanguageActivities(e.target.value)} rows={2} style={inputStyle}/>
-        </label>
-
-        {/* 生成・表示ボタン */}
-        <button type="submit" style={{ ...inputStyle, backgroundColor:"#4CAF50", color:"white" }}>
-          授業案を{mode==="manual"?"表示する":"生成する"}
+        <button
+          type="submit"
+          style={{ ...inputStyle, backgroundColor: "#2196F3", color: "white" }}
+        >
+          {mode === "manual" ? "授業案を表示する" : "授業案を生成する"}
         </button>
       </form>
 
       {loading && <p>生成中…</p>}
 
-      {result && (
+      {parsedResult && (
         <>
-          <button onClick={handleSaveBoth} style={{ ...inputStyle, backgroundColor:"#8E44AD", color:"white" }}>
-            保存
-          </button>
-          <button onClick={handlePdfDownload} style={{ ...inputStyle, backgroundColor:"#2196F3", color:"white" }}>
-            📄 PDFとして保存
-          </button>
-          <div id="result-content" style={{ whiteSpace:"pre-wrap", border:"1px solid #ccc", padding:"1rem", marginTop:"1rem" }}>
-            {result}
+          <div
+            style={{
+              marginTop: 16,
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+            }}
+          >
+            <button
+              onClick={handleSaveAll}
+              style={{
+                padding: "12px",
+                backgroundColor: "#4CAF50",
+                color: "white",
+                fontSize: "1.1rem",
+                borderRadius: 8,
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              💾 一括保存 (ローカル・Firestore・Drive)
+            </button>
+
+            <button
+              onClick={handlePdfDownloadOnly}
+              style={{
+                padding: "12px",
+                backgroundColor: "#FF9800",
+                color: "white",
+                fontSize: "1.1rem",
+                borderRadius: 8,
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              📄 PDFをダウンロード
+            </button>
+          </div>
+
+          <div id="result-content" style={cardStyle}>
+            <div style={titleStyle}>授業の概要</div>
+            <p>教科書名：{parsedResult["教科書名"]}</p>
+            <p>学年：{parsedResult["学年"]}</p>
+            <p>ジャンル：{parsedResult["ジャンル"]}</p>
+            <p>単元名：{parsedResult["単元名"]}</p>
+            <p>授業時間数：{parsedResult["授業時間数"]}時間</p>
+            <p>育てたい子どもの姿：{parsedResult["育てたい子どもの姿"] || ""}</p>
+
+            <div style={{ marginTop: 12 }}>
+              <div style={titleStyle}>単元の目標</div>
+              <p>{parsedResult["単元の目標"]}</p>
+            </div>
+
+            <div style={{ marginTop: 12 }}>
+              <div style={titleStyle}>評価の観点</div>
+
+              <strong>知識・技能</strong>
+              <ul style={listStyle}>
+                {(
+                  Array.isArray(parsedResult["評価の観点"]?.["知識・技能"])
+                    ? parsedResult["評価の観点"]["知識・技能"]
+                    : parsedResult["評価の観点"]?.["知識・技能"]
+                    ? [parsedResult["評価の観点"]["知識・技能"]]
+                    : []
+                ).map((v: string, i: number) => (
+                  <li key={`knowledge-${i}`}>{v}</li>
+                ))}
+              </ul>
+
+              <strong>思考・判断・表現</strong>
+              <ul style={listStyle}>
+                {(
+                  Array.isArray(parsedResult["評価の観点"]?.["思考・判断・表現"])
+                    ? parsedResult["評価の観点"]["思考・判断・表現"]
+                    : parsedResult["評価の観点"]?.["思考・判断・表現"]
+                    ? [parsedResult["評価の観点"]["思考・判断・表現"]]
+                    : []
+                ).map((v: string, i: number) => (
+                  <li key={`thinking-${i}`}>{v}</li>
+                ))}
+              </ul>
+
+              <strong>主体的に学習に取り組む態度</strong>
+              <ul style={listStyle}>
+                {(
+                  Array.isArray(parsedResult["評価の観点"]?.["主体的に学習に取り組む態度"])
+                    ? parsedResult["評価の観点"]["主体的に学習に取り組む態度"]
+                    : parsedResult["評価の観点"]?.["主体的に学習に取り組む態度"]
+                    ? [parsedResult["評価の観点"]["主体的に学習に取り組む態度"]]
+                    : parsedResult["評価の観点"]?.["態度"]
+                    ? [parsedResult["評価の観点"]["態度"]]
+                    : []
+                ).map((v: string, i: number) => (
+                  <li key={`attitude-${i}`}>{v}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div style={{ marginTop: 12 }}>
+              <div style={titleStyle}>言語活動の工夫</div>
+              <p>{parsedResult["言語活動の工夫"]}</p>
+            </div>
+
+            <div style={{ marginTop: 12 }}>
+              <div style={titleStyle}>授業の流れ</div>
+              <ul style={listStyle}>
+                {parsedResult["授業の流れ"] &&
+                  typeof parsedResult["授業の流れ"] === "object" &&
+                  Object.entries(parsedResult["授業の流れ"]).map(([key, val], i) => (
+                    <li key={`flow-${i}`}>
+                      <strong>{key}：</strong> {String(val)}
+                    </li>
+                  ))}
+              </ul>
+            </div>
           </div>
         </>
       )}

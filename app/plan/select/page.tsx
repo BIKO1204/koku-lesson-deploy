@@ -1,9 +1,18 @@
-// app/plan/select/page.tsx
+// ファイル: app/plan/select/page.tsx
+
 "use client";
 
 import { useEffect, useState } from "react";
-import { db } from "../../firebaseConfig.js";
 import { useRouter } from "next/navigation";
+import {
+  collection,
+  query,
+  orderBy,
+  getDocs,
+  deleteDoc,
+  doc,
+} from "firebase/firestore";
+import { db } from "../../firebaseConfig"; // .js 拡張子は不要です
 
 type LessonPlan = {
   id: string;
@@ -24,37 +33,45 @@ export default function SelectPlansPage() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // Firestore から読み込み
+  // Firestore から読み込み (モジュラー SDK 形式)
   useEffect(() => {
     async function fetchPlans() {
+      setLoading(true);
+
       try {
-        const snap = await db
-          .collection("lesson_plans")
-          .orderBy("timestamp", "desc")
-          .get();
-        const docs = snap.docs.map((d) => ({
+        // ① コレクション参照を作成
+        const colRef = collection(db, "lesson_plans");
+        // ② query を組み立て (timestamp 降順)
+        const q = query(colRef, orderBy("timestamp", "desc"));
+        // ③ ドキュメント群を取得
+        const snapshot = await getDocs(q);
+        // ④ スナップショットを配列に変換
+        const docs = snapshot.docs.map((d) => ({
           id: d.id,
           ...(d.data() as Omit<LessonPlan, "id">),
         }));
         setPlans(docs);
       } catch (e) {
-        console.error("Firestore読み込みエラー", e);
+        console.error("Firestore 読み込みエラー:", e);
       } finally {
         setLoading(false);
       }
     }
+
     fetchPlans();
   }, []);
 
+  // チェックボックスのトグル
   const toggle = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
 
-  // 選択したものを JSON としてダウンロード
+  // 選択データを JSON としてダウンロード
   const handleDownload = () => {
     if (selectedIds.size === 0) {
       alert("まずエクスポートする授業案を選択してください。");
@@ -80,15 +97,18 @@ export default function SelectPlansPage() {
     }
     if (!confirm("選択した授業案を本当に削除しますか？")) return;
 
-    for (const id of selectedIds) {
+    const idsToDelete = Array.from(selectedIds);
+
+    for (const id of idsToDelete) {
       try {
-        await db.collection("lesson_plans").doc(id).delete();
+        // モジュラー SDK 形式で deleteDoc を使う
+        await deleteDoc(doc(db, "lesson_plans", id));
       } catch (e) {
-        console.error("Firestore削除エラー:", e);
+        console.error(`Firestore 削除エラー (ID=${id}):`, e);
         alert(`ID=${id} の削除に失敗しました`);
       }
     }
-    // UI 更新
+    // UI 更新: plans から削除済みを除去し、チェックセットをクリア
     setPlans((prev) => prev.filter((p) => !selectedIds.has(p.id)));
     setSelectedIds(new Set());
   };
@@ -142,7 +162,7 @@ export default function SelectPlansPage() {
   );
 }
 
-// --- スタイル ---
+// --- スタイル定義 ---
 
 const mainStyle: React.CSSProperties = {
   padding: "1.5rem",

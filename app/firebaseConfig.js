@@ -1,25 +1,39 @@
-// プロジェクトルート直下に置いている firebaseConfig.js
-import firebase from "firebase/compat/app";
-import "firebase/compat/firestore";
-import "firebase/compat/auth";
+// firebaseConfig.js
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { getFirestore } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
+import { getStorage } from "firebase/storage";
+
+// .env.local に以下のような環境変数を必ず設定してください
+// NEXT_PUBLIC_FIREBASE_API_KEY=
+// NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
+// NEXT_PUBLIC_FIREBASE_PROJECT_ID=
+// NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
+// NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
+// NEXT_PUBLIC_FIREBASE_APP_ID=
+// NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=
 
 const firebaseConfig = {
-  apiKey: "AIzaSyC8EyNS0V1ZlsFoF5UOnHalhfqovT2gmuo",
-  authDomain: "koku-lesson-planner.firebaseapp.com",
-  projectId: "koku-lesson-planner",
-  storageBucket: "koku-lesson-planner.appspot.com",
-  messagingSenderId: "269155400063",
-  appId: "1:269155400063:web:8ce00951ab30826da9024a",
-  measurementId: "G-XKCD1RXFW2"
+  apiKey:             process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain:         process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId:          process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket:      process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId:  process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId:              process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId:      process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-// すでに初期化済みでなければ初期化
-if (!firebase.apps.length) {
-  firebase.initializeApp(firebaseConfig);
+// Firebaseがすでに初期化済みならそのインスタンスを取得し、未初期化なら新規初期化する
+let app;
+if (!getApps().length) {
+  app = initializeApp(firebaseConfig);
+} else {
+  app = getApp();
 }
 
-// 互換版 Firestore と Auth をエクスポート
-const db = firebase.firestore();
-const auth = firebase.auth();
+// Firestore、Auth、Storage のインスタンスを取得
+const db = getFirestore(app);
+const auth = getAuth(app);
+const storage = getStorage(app);
 
-export { db, auth };
+export { app, db, auth, storage };

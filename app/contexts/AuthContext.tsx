@@ -1,4 +1,3 @@
-// app/contexts/AuthContext.tsx
 "use client";
 
 import {
@@ -8,50 +7,49 @@ import {
   useState,
   ReactNode,
 } from "react";
-import { auth } from "../firebaseConfig.js";
+import { auth } from "../firebaseConfig";
 import {
   onAuthStateChanged,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
   signOut,
   User,
-  UserCredential,
 } from "firebase/auth";
 
 export type AuthContextType = {
   user: User | null;
   loading: boolean;
-  login: (email: string, pw: string) => Promise<UserCredential>;
-  signup: (email: string, pw: string) => Promise<UserCredential>;
+  loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser]       = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
       setLoading(false);
     });
     return () => unsubscribe();
   }, []);
 
-  // ← ここで .then(() => {}) を外して、戻り値をそのまま返します
-  const login = (email: string, pw: string) =>
-    signInWithEmailAndPassword(auth, email, pw);
+  // Googleログイン関数
+  const loginWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    await signInWithPopup(auth, provider);
+  };
 
-  const signup = (email: string, pw: string) =>
-    createUserWithEmailAndPassword(auth, email, pw);
-
-  const logout = () => signOut(auth);
+  const logout = async () => {
+    await signOut(auth);
+  };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout }}>
-      {children}
+    <AuthContext.Provider value={{ user, loading, loginWithGoogle, logout }}>
+      {loading ? <div>認証中...</div> : children}
     </AuthContext.Provider>
   );
 }
